@@ -1,3 +1,7 @@
 .venv/*
 *nogit*
 *.DS_Store*
+.Rproj.user
+*.RData
+*.Rhistory
+R.Rproj

@@ -1,5 +1,5 @@
 library(readr)
-setwd("/Users/afraser/Documents/src/cuny-datascience/bridge/R/")
+# setwd("/Users/afraser/Documents/src/cuny-datascience/bridge/R/")
 tips <- read_csv("data/tips.csv")
 View(tips)
 # print(tips$total_bill)
