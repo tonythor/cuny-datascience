@@ -1,7 +1,5 @@
 library(readr)
-setwd("/Users/afraser/Documents/src/math_for_ds_masterclass/")
-# print(getwd())
-
+setwd("/Users/afraser/Documents/src/cuny-datascience/bridge/R/")
 tips <- read_csv("data/tips.csv")
 View(tips)
 # print(tips$total_bill)
@@ -14,4 +12,4 @@ hist(tips$total_bill, breaks=20)
 
 
 
-tips$total_bill, 
+# tips$total_bill, 
