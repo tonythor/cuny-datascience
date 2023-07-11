@@ -20,6 +20,6 @@ matplotlib
 scipy
 ipykernel
 sympy
-
+openjdk-11-jdk
 #Cython>=0.22 and NumPy are required.
 

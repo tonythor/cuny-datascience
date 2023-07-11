@@ -64,5 +64,27 @@ is.na(f[1])
 x <- 10:1 
 y <- -4:5 
 q <- c("Hockey", "Football", "Baseball", "Curling", "Rugby","Lacrosse", "Basketball", "Tennis", "Cricket", "Soccer")
-theDF <- data.frame(x, y, q) 
+theDF <- data.frame("count" = x, "other"= y, "sport" = q) 
 theDF
+
+theDF[1,]
+
+theDF$Sport
+
+## Load data into dataframe, use sqldf to query it.
+mcsv <- "http://www.jaredlander.com/data/Tomato%20First.csv"
+tomato <- read.csv(mcsv)
+head(tomato)
+library(sqldf)
+x = sqldf("select * from tomato where source like '%gostino%'")
+
+
+## functions, and default parameters
+say.hello <- function(fName ="tony")
+{
+  sprintf("Yolo %s", fName)
+}
+say.hello()
+say.hello("jake")
+
+say.hello("rif")

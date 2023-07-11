@@ -10,6 +10,4 @@ length(combn(20,5))
 
 hist(tips$total_bill, breaks=20)
 
-
-
 # tips$total_bill, 
