@@ -9,12 +9,10 @@ numpy
 requests
 pprintpp
 prophet
-pyspark[sql]
+#pyspark[sql]
 pandas
-pystan
-Cython
+Cython>=0.22
 plotly==5.13.1
-pystan==3.6.0
 jupyter
 pyttsx3
 seaborn
@@ -22,3 +20,6 @@ matplotlib
 scipy
 ipykernel
 sympy
+
+#Cython>=0.22 and NumPy are required.
+
