@@ -88,3 +88,10 @@ say.hello()
 say.hello("jake")
 
 say.hello("orit")
+say.hello("tony")
+
+
+#check.bool <- function(x)
+#{
+#  if x ==
+#}
