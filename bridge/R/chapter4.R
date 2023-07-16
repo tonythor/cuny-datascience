@@ -79,6 +79,14 @@ library(sqldf)
 x = sqldf("select * from tomato where source like '%gostino%'")
 
 
+library(sqldf)
+titanic_dataset <- "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
+titanic <- read.csv(titanic_dataset)
+nrow(titanic)
+titanic_children = sqldf("select PassengerId, Name  from titanic where age < 18")
+nrow(titanic_children)
+titanic_children
+
 ## functions, and default parameters
 say.hello <- function(fName ="tony")
 {
