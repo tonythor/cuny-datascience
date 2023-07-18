@@ -9,7 +9,7 @@ numpy
 requests
 pprintpp
 prophet
-#pyspark[sql]
+pyspark[sql]
 pandas
 Cython>=0.22
 plotly==5.13.1

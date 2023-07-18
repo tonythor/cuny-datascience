@@ -1,0 +1,78 @@
+---
+title: 'Homework 2: Married children on the Titanic'
+author: "Tony Fraser"
+date: "2023-07-17"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+## Overview
+For exploring, I decided to take the Titanic manifest down to just those under 18.
+In doing so, I noticed several females with "Mrs." in the Name column, and realized 
+at that time, that was probably plenty old enough to be married. Back then, it was 
+likely that children were either referred to by their name, or perhaps Miss or
+Master. As well, the age of consent was very differnet in the 1910's. 
+
+
+```{r setup}
+library(sqldf)
+library(dplyr)
+library(stringr)
+
+#7.  BONUS – place the original .csv in a github file and read from a link.
+loc<-"https://raw.githubusercontent.com/tonythor/pyspark-env/main/data/titanic.csv"
+titanic_dataset <- loc
+titanic <- read.csv(titanic_dataset)
+
+#3. Create new column names for the new data frame.
+titanic <- dplyr::rename(titanic, c("Class" = "Pclass"), c("Gender" = "Sex"))
+titanic[c('LastName', 'FirstName')]<- str_split_fixed(titanic$Name, ',', 2)
+
+#2. Create a new data frame with a subset of the columns and rows. Make 
+#   sure to rename it.
+t_children = sqldf("select  Survived, Class, LastName, FirstName,
+                         Gender, Age from titanic where age < 18 
+                         order by Class, Age desc")
+
+#1 Use the summary function to gain an overview of the data set. Then 
+#  display the mean and median for at least two attributes.
+
+summary(t_children)
+sprintf("P Class : mean:%s median:%s", 
+        round(mean(t_children$Class), digits=4), 
+        round(median(t_children$Class),digits=4))
+sprintf("Survived: mean:%s median:%s", 
+        round(mean(t_children$Survived), digits=4), 
+        round(mean(t_children$Survived), digits=4))
+
+
+# Add that column in there based on salutations
+t_children = t_children %>%
+  mutate(PossiblyMarried = case_when(
+    grepl("Mrs.", FirstName) ~ "True",
+    grepl("Mister.", FirstName ) ~ "True",
+    grepl("Mr.", FirstName ) ~ "True",
+    .default = ""
+  ))
+
+#5 For at least 3 values in a column please rename so that every value in 
+#  that column is renamed.
+replacements  = c('Miss.'='','Master.'='', 'Mrs.'='', 'Mister.'='', 'Mr.'='')
+t_children$FirstName<- str_replace_all(t_children$FirstName, replacements )
+
+
+# The first name column is pretty long. Let's truncate it so it'll fit on one page.
+t_children = t_children %>% mutate(FirstName = str_trunc(FirstName, width = 10))
+
+married = nrow(sqldf("select PossiblyMarried from t_children where length(PossiblyMarried) > 1"))
+sprintf('Number of children in this dataset: %s', nrow(t_children))
+sprintf('Number of children who might already be married: %s', married)
+```
+\newpage
+
+```{r sample}
+#6. Display enough rows to see examples of all of steps 1-5 above.
+head(t_children, 50) 
+```
