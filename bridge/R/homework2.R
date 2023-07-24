@@ -3,6 +3,7 @@ library(sqldf, dplyr, stringr)
 #7. BONUS – place the original .csv in a github file and have R read from the link.
 titanic_dataset <- "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
 titanic <- read.csv(titanic_dataset)
+titanic
 
 #3. Create new column names for the new data frame.
 titanic <- dplyr::rename(titanic, c("PassengerClass" = "Pclass"), c("Gender" = "Sex"))

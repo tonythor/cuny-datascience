@@ -3,9 +3,9 @@ title: 'Homework 2: Married children on the Titanic'
 author: "Tony Fraser"
 date: "2023-07-17"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
 ---
 
 ## Overview
