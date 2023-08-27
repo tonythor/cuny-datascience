@@ -6,3 +6,4 @@
 *.Rhistory
 R.Rproj
 *.ipynb_checkpoints*
+.ipynb_checkpoints* 
