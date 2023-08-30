@@ -5,9 +5,9 @@ INITIAL|NICKI
     1 | GARYH
    ON | 15445
 -------------
-    4 | 23456
+    4 | TNOYF
    CA | bigma
 -------------
-    5 | 66666
+    5 | SANTO
    NY | fancy
 -------------
