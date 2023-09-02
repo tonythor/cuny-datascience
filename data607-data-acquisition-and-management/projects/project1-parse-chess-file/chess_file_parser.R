@@ -6,6 +6,7 @@ library(stringr)
 # library(tidyverse)
 
 
+setwd("/Users/afraser/Documents/src/cuny-datascience/data607-data-acquisition-and-management/projects/project1-parse-chess-file")
 ddf <- function(df) {
   for (line in df) {
     print(line)
@@ -61,12 +62,13 @@ single_row_record_array <- file_to_single_row_records(file_name)
 # Split each entry in the array
 split_data <- lapply(single_row_record_array, function(x) strsplit(x, split = "\\|")[[1]])
 df <- as.data.frame(do.call(rbind, split_data), stringsAsFactors = FALSE)
-cols <- c("pair", "name", "total", "round1", "round2", "round3", "round4", "round5",
-          "round6", "round7", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J")
+cols <- c("pair", "Player's Name", "Total Points", "round1", "round2", "round3", "round4", "round5",
+          "round6", "round7", "Player's State", "B", "C", "D", "E", "F", "G", "H", "I", "J")
 colnames(df) <-  cols
 
 write.csv(df, file = file_name_csv, append = FALSE, quote = FALSE, row.names = FALSE )
 
+view(df)
 print(head(df))
 
 
