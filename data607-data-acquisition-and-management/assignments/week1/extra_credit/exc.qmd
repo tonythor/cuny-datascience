@@ -1,0 +1,140 @@
+---
+title: "NYC Traffic Accident Review"
+author: "Tony Fraser"
+date: "3/Sept/2023"
+output:
+  pdf_document: default
+  latex_engine: xelatex # or pdflatex or lualatex
+monofontoptions: 
+  - Scale=0.55
+editor_options: 
+  chunk_output_type: console
+---
+## Assignment:
+Use Quarto and GT to ask and answer interesting questions about a dataset.
+
+## About this dataset
+This is an official collection of all 2,021,793 New York City traffic accidents between 1-Jan-2020 and 31-Dec-2021 where the damage was reported was reported greater than 1,000 dollars. 
+
+## My big question,and my finding! 
+Ask and answer was the assignment, my ask was only what's in this data and can it be useful. My big finding is, NYC had a tank accident!
+
+
+![](https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data607-data-acquisition-and-management/assignments/dot.png){fig-alt="A drawing of an elephant." fig-align="center" width=60%}
+
+\newpage
+
+### Load one the massive accidents table 
+```{r global_options, message=FALSE, echo=TRUE}
+library(stringr)
+library(dplyr)
+library(gt)
+library(data.table)
+# unix split command created these 200k record files.
+data_files = c("xaa.csv",	"xac.csv", "xae.csv", "xag.csv", "xai.csv", "xak.csv", 
+  "xam.csv", "xao.csv", "xaq.csv", "xas.csv", "xau.csv", "xab.csv", "xad.csv", 
+  "xaf.csv", "xah.csv", "xaj.csv", "xal.csv", "xan.csv", "xap.csv", "xar.csv", "xat.csv")
+base_url <- "https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data/nyctraffic/csv_files/"
+# get all the data files into fully qualified urls.
+data_file_urls <- sapply(data_files, USE.NAMES = FALSE, function(i) str_c(base_url,i))
+# load the headers into a vector.
+header_url <- str_c(base_url, "../headers.csv")
+headers <- colnames(fread(header_url, header=TRUE))
+# load all urls into a vector of dataframes.
+df_list <- lapply(data_file_urls, function(i) fread(i, col.names = headers))
+# Combine all data frames into one
+accidents <- do.call(rbind, df_list)
+```
+\newpage
+
+### Deal with some of the "human entry" factor
+This enitre data set is based on police officers manually inserting data, so much of it needs to be reviewed and slightly recatagorized. 
+
+```{r mappings, message=FALSE, echo=TRUE}
+
+vehicle_mappings <- list(
+  Ambulance = c("AMBULANCE", "AMBU", "AMBUL", "ambulance","Ambulance", "ambul", "Ambul", 
+    "AMB", "FDNY AMBUL"),
+  Ebike = c("E-Bike", "Electric Bike", "E-bik", "E-Bik"),
+  Motorcycle = c("Moped", "Motorbike", "Motorcycle", "MOPED", "Motorscooter", "moped",
+   "MOTORCYCLE", "MOTOR SCOO"),
+  Sedan = c("2 dr sedan","4 dr sedan", "3-Door", "sedan", "Sedan"),
+  SUV = c("Station Wagon/Sport Utility Vehicle", "SPORT UTILITY / STATION WAGON"),
+  Taxi = c("Taxi","TAXI", "taxi"),
+  Bus = c("BUS","Bus", "bus", "School", "School Bus", "SCHOO", "schoo"),
+  Pickup = c("PICK-UP TRUCK","PU","PK", "Pick-up Truck", "TRUCK", "Open Body", "Open body", "truck", "Truck"),
+  FDNY = c("FIRETRUCK", "FIRE TRUCK", "FDNY", "FIRE", "Fire", "fire", "FIRET", "FDNY FIRE",
+     "Fire Truck", "FDNY TRUCK", "fdny"),
+  Scooter=c("SCOOT", "E-Sco", "SCOOTER", "E-Scooter", "E-Sco"),
+  Van=c("VAN", "van", "Van")
+
+)
+
+by_borough <- accidents %>%
+  filter(!is.na(BOROUGH) & nchar(BOROUGH) > 0 & `CONTRIBUTING FACTOR VEHICLE 1` != "unspecified") %>%
+  mutate(`VEHICLE TYPE CODE 1` = 
+           case_when(
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Ambulance ~ "Ambulance_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Ebike ~ "Ebike_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Motorcycle ~ "Motorcycle_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Sedan ~ "Sedan_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$SUV ~ "SUV_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Taxi ~ "Taxi_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Bus ~ "Bus_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Pickup ~ "PickupTruck_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$FDNY ~ "FireTruck_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Scooter ~ "Scooter_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Van ~ "Van_",
+             TRUE ~ `VEHICLE TYPE CODE 1`
+           )
+         ) %>%
+  group_by(`VEHICLE TYPE CODE 1`, BOROUGH) %>%
+  summarise(count = n(), .groups = "drop")
+```
+
+\newpage
+### Create a match table to move vehichle type blocks around 
+Create a temporary e groupby/count/sort of the vehicle types. Then, we can join that table back
+to the data table to get an order of blocks. (Like SVU's, 1, cars, 2, taxis 3). 
+
+
+```{r createOrdering, message=FALSE, echo=TRUE }
+# Create ordering variable table
+vehicle_order <- by_borough %>%
+  group_by(`VEHICLE TYPE CODE 1`) %>%
+  summarise(total_count = sum(count), .groups = "drop") %>%
+  arrange(desc(total_count)) %>%
+  mutate(order = row_number())
+
+# Consolidate "Other" types and merge with the main data
+by_borough_consolidated <- by_borough %>%
+  left_join(vehicle_order, by = "VEHICLE TYPE CODE 1") %>%
+  mutate(`VEHICLE TYPE CODE 1` = ifelse(count < 5, "Other", `VEHICLE TYPE CODE 1`)) %>%
+  group_by(`VEHICLE TYPE CODE 1`, BOROUGH) %>%
+  summarise(count = sum(count), order = first(order), .groups = "drop") %>%
+  arrange(order, desc(count))
+
+```
+\newpage
+### Use GT to chart
+
+```{r chart}
+by_borough_consolidated %>%
+  gt() %>%
+  tab_style(
+    style = cell_text(align = "left"),
+    locations = cells_body(columns = c(`VEHICLE TYPE CODE 1`, BOROUGH, count))
+  ) %>%
+  cols_label(
+    `VEHICLE TYPE CODE 1` = "Vehicle Code",
+    BOROUGH = "Borough",
+    count = "Accident Count",
+    order = "ChartOrder"
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold", size = "large"),
+    locations = cells_column_labels(columns = c(`VEHICLE TYPE CODE 1`, BOROUGH, count))
+  )
+
+```
+
