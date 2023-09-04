@@ -1,0 +1,193 @@
+---
+title: "Assignment 1, Loading a DataFrame"
+author: "By Tony Fraser, CUNY MSDS Student"
+date: "4/Sept/2023"
+format:
+  html:
+    toc: true
+    html-math-method: katex
+    css: styles.css
+---
+
+# Overview
+This first assignment is to load and manipulate a dataframe with purpose. I am assigning myself the purpose of exploring my new dataset, and specifically looking at geospatial data in plotted maps.  I have the NYC traffic data. It has longitude and latitude;  I'd like to know if I can see wrecks in front of the school down the street from where I live.
+
+# 1. Prepare your mac
+This was the brutal, but here's [how to install gdal on  a mac](https://gist.github.com/tonythor/647eabad342bc91a5585fe4728354c90). It took me about six hours.
+
+# 2. Load NYC traffic data
+This is an official collection of all 2,021,793 New York City traffic accidents between 1-Jan-2020 and 31-Dec-2021 where reported damage was greater than 1,000 dollars. [^1]
+
+![](https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data607-data-acquisition-and-management/assignments/week1/extra_credit/shield.png){fig-alt="A drawing of an elephant." fig-align="center" width=20%}
+
+
+[^1]: https://catalog.data.gov/dataset/motor-vehicle-collisions-crashes
+
+```{r global_options, message=FALSE, echo=TRUE}
+
+library(dplyr)
+library(stringr)
+library(data.table)
+library(mapview)
+library(sf)
+library(gt)
+library(leaflet)
+
+data_files = c("xaa.csv",	"xac.csv", "xae.csv", "xag.csv", "xai.csv", "xak.csv", 
+  "xam.csv", "xao.csv", "xaq.csv", "xas.csv", "xau.csv", "xab.csv", "xad.csv", 
+  "xaf.csv", "xah.csv", "xaj.csv", "xal.csv", "xan.csv", "xap.csv", "xar.csv", "xat.csv")
+  ## This first sample, the one that creates the most bias.
+  
+data_files <- data_files[1:5] 
+
+# get all the data files into fully qualified urls.
+git_repo <- "https://raw.githubusercontent.com/tonythor/cuny-datascience/"
+base_url <- paste(git_repo, "develop/data/nyctraffic/csv_files/", sep="") 
+data_file_urls <- sapply(data_files, USE.NAMES = FALSE, function(i) str_c(base_url,i))
+
+# load the headers into a vector.
+header_url <- str_c(base_url, "../headers.csv")
+headers <- colnames(fread(header_url, header=TRUE))
+
+# load all urls into a url vector dataframe
+df_list <- lapply(data_file_urls, function(i) {
+  message("Loading file: ", i)
+  fread(i, col.names = headers)
+})
+#union the dataframes
+accidents <- do.call(rbind, df_list)
+
+# Immediately chop off a lot of that data and save your ram.
+accidents <- accidents %>%
+  {message("Started NA values"); .} %>%
+  filter(!is.na(LATITUDE) & !is.na(LONGITUDE)) %>%
+  {message("Starting Zero values"); .} %>%
+  filter(LATITUDE != 0 & LONGITUDE != 0) %>%
+  {message("Completed filtering zeros"); .}
+
+  
+```
+\newpage
+
+# 3. Some minor transformations
+```{r minorTranform}
+vehicle_mappings <- list(
+  Ambulance = c("AMBULANCE", "AMBU", "AMBUL", "ambulance","Ambulance", "ambul", "Ambul", 
+    "AMB", "FDNY AMBUL"),
+  Ebike = c("E-Bike", "Electric Bike", "E-bik", "E-Bik"),
+  Motorcycle = c("Moped", "Motorbike", "Motorcycle", "MOPED", "Motorscooter", "moped",
+   "MOTORCYCLE", "MOTOR SCOO"),
+  Sedan = c("2 dr sedan","4 dr sedan", "3-Door", "sedan", "Sedan"),
+  SUV = c("Station Wagon/Sport Utility Vehicle", "SPORT UTILITY / STATION WAGON"),
+  Taxi = c("Taxi","TAXI", "taxi"),
+  Bus = c("BUS","Bus", "bus", "School", "School Bus", "SCHOO", "schoo"),
+  Pickup = c("PICK-UP TRUCK","PU","PK", "Pick-up Truck", "TRUCK", 
+   "Open Body", "Open body", "truck", "Truck"),
+  FDNY = c("FIRETRUCK", "FIRE TRUCK", "FDNY", "FIRE", "Fire", "fire", "FIRET", 
+  "FDNY FIRE", "Fire Truck", "FDNY TRUCK", "fdny"),
+  Scooter=c("SCOOT", "E-Sco", "SCOOTER", "E-Scooter", "E-Sco"),
+  Van=c("VAN", "van", "Van")
+)
+accidents <- accidents %>%
+  mutate(`VEHICLE TYPE CODE 1` = 
+           case_when(
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Ambulance ~ "Ambulance_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Ebike ~ "Ebike_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Motorcycle ~ "Motorcycle_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Sedan ~ "Sedan_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$SUV ~ "SUV_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Taxi ~ "Taxi_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Bus ~ "Bus_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Pickup ~ "PickupTruck_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$FDNY ~ "FireTruck_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Scooter ~ "Scooter_",
+             `VEHICLE TYPE CODE 1` %in% vehicle_mappings$Van ~ "Van_",
+             TRUE ~ `VEHICLE TYPE CODE 1` ))
+
+```
+
+
+# 3. Filter and sample  
+We now have a lot of data, too much to plot. And we want to do a random sample. So first, let's get all the data near the house, then we'll random sample that.
+
+```{r sampleTheData, messages=FALSE, eval=TRUE} 
+block_start  <- Sys.time()
+
+sample_size <- 1000
+radius_constant_latitude <- 0.5 / 69  ## about half a mile
+radius_constant_longitude <- 0.5 / 53
+latitude_center <- 40.63301218679552 ## my home
+longitude_center <- -74.03144593229777
+
+accidents_count = nrow(accidents)
+
+filter_start  <- Sys.time()
+accidents <- accidents %>%
+  filter(
+    between(LATITUDE, 
+            latitude_center - radius_constant_latitude, latitude_center + radius_constant_latitude) &
+    between(LONGITUDE, 
+            longitude_center - radius_constant_longitude, longitude_center + radius_constant_longitude)
+  )
+filter_count <- nrow(accidents)
+filter_time <- difftime(Sys.time(), filter_start, units = "secs")
+sample_start  <- Sys.time()
+accidents <- accidents %>% sample_n(sample_size)
+end_count <- nrow(accidents)
+sample_time <- difftime(Sys.time(), sample_start, units = "secs")
+block_time  <- difftime(Sys.time(), block_start, units = "secs")
+
+```
+
+* `r round(accidents_count,4)`:  starting record count 
+* `r round(filter_time, 4)`: time it took to filter, in seconds
+* `r round(filter_count, 4)` : number of records after filtering near my house
+* `r round(sample_time, 4)` : the time it took to random sample on this smaller dataset, in seconds
+* `r round(end_count, 4)` : double check, we are plotting this many records
+* `r round(block_time, 4)` : the total time it took to runt this block,  in seconds 
+
+
+# 4. Build the map
+```{r mapvbuild,  message=FALSE}
+
+# Random Sampling, filtering, and adding popup text
+accidents <- accidents %>%
+  mutate(popup_text = paste("Vehicle Type:", `VEHICLE TYPE CODE 1`, 
+                            "<br>Latitude:", LATITUDE,
+                            "<br>Longitude:", LONGITUDE,
+                            "<br>Crash Date:", `CRASH DATE`))
+
+m_accidents <- mapview(accidents, 
+                       crs = 4269,  # <- 4269 is USA 
+                       xcol = "LONGITUDE", 
+                       ycol = "LATITUDE", 
+                       zcol = "VEHICLE TYPE CODE 1", 
+                       popup = "popup_text", 
+                       grid = FALSE)
+
+# Create a mapview for the home location
+m_home <- mapview(data.frame(LONGITUDE = longitude_center, LATITUDE = latitude_center), 
+                  crs = 4269,
+                  xcol = "LONGITUDE", 
+                  ycol = "LATITUDE", 
+                  color = "red", 
+                  popup = "This is my home!",
+                  grid = FALSE)
+
+# Layer the home mapview on top of the accident mapview
+m_combined <- m_accidents + m_home 
+```
+
+<hr>
+# Wrecks in my neighborhood
+<hr>
+```{r displayMap, message=FALSE, echo=FALSE, eval=TRUE}
+m_combined 
+
+# thhis doens't look good, but it's how to get a legedn on there.
+# m_combined@map %>%  
+#  addControl(html = "<h1>Wrecks in my neighborhood</h1>", 
+#             position = "topleft", 
+#             className = "map-title")
+```
+
