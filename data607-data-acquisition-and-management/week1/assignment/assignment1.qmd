@@ -18,7 +18,7 @@ This was the brutal, but here's [how to install gdal on  a mac](https://gist.git
 # 2. Load NYC traffic data
 This is an official collection of all 2,021,793 New York City traffic accidents between 1-Jan-2020 and 31-Dec-2021 where reported damage was greater than 1,000 dollars. [^1]
 
-![](https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data607-data-acquisition-and-management/assignments/week1/extra_credit/shield.png){fig-alt="A drawing of an elephant." fig-align="center" width=20%}
+![](https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/images/nypd_shield.png){fig-alt="A drawing of an elephant." fig-align="center" width=20%}
 
 
 [^1]: https://catalog.data.gov/dataset/motor-vehicle-collisions-crashes
