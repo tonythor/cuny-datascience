@@ -1,0 +1,28 @@
+---
+title: "Tony Fraser"
+author: "Norah Jones"
+date: "5/22/2021"
+format:
+  html:
+    code-fold: true
+jupyter: julia-1.8
+---
+
+## Parametric Plots
+
+Plot function pair (x(u), y(u)). 
+See @fig-parametric for an example.
+
+```{julia}
+# import Pkg; Pkg.add("Plots")` 
+#| label: fig-parametric
+#| fig-cap: "Parametric Plots"
+
+using Plots
+
+plot(sin, 
+     x->sin(2x), 
+     0, 
+     2π, 
+     leg=false, 
+     fill=(0,:lavender))
