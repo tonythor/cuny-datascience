@@ -1,6 +1,6 @@
 ---
-title: "SQL and Dataframes with Julia"
-author: "Tony Fraser : 10Sept2023"
+title: "SQL, Dataframes, and Julia"
+author: "Tony Fraser : 10 September 2023"
 output:
   pdf_document: default
   latex_engine: xelatex
@@ -24,18 +24,18 @@ Amidst machine learning giants like TensorFlow and spark.ml, Julia distinguishes
 
 \newpage
 
-# Load Data
-Hosted on Kaggle, this is the [European Castle](https://www.kaggle.com/datasets/datasciencedonut/european-castles) data set. And after this code block runs, data will be in both dataframes, and in the sqlite database.
+# Load The Castle Data Set
+* Hosted on Kaggle, this is the [European Castle](https://www.kaggle.com/datasets/datasciencedonut/european-castles) data set. 
+* After this code block runs, data will be in both dataframes, and in the sqlite database. 
 
-Table headers: 
-
+## Table headers: 
 * **CastleDetails**: Name, Latitude, Longitude, Adminstrative_Area_Level_1, Adminstrative_Area_Level_2, Municipality, Country, Postal_Code, Address, Editorial_Summary, Open_Hours, User_Rating, Wheelchair_Accessible_Entrance, Phone_Number, International_Phone_Number, Website
 
 * **CastleUserReviews**:Name, Author, Rating, Review
 
+***
+
 ```{julia loadData}
-packages = ["CSV", "DataFrames", "SQLite", "HTTP", "Gadfly", "IJulia"]
-for pkg in packages Pkg.add(pkg)  end
 using CSV, DataFrames, SQLite, HTTP, Gadfly
 
 b = "https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data/eurocastles"
@@ -45,27 +45,23 @@ castle_user_reviews_content  = HTTP.get("$(b)/castle_user_reviews.csv").body
 # castle_user_reviews_content <- comes back as a byte array of type ::Vector{UInt8}, to
 # convert to a string do this: `content_string = String(castle_user_reviews_content)`
 
-# Read the content into DataFrames
 castles_df = CSV.File(IOBuffer(castle_details_content))      |> DataFrame
 reviews_df = CSV.File(IOBuffer(castle_user_reviews_content)) |> DataFrame
 
-# Initalize SQLite, an in memory sql database. 
+# Create/Initalize/Populate SQLite DB 
 db = SQLite.DB("castles.db")
-
-# Create tables and insert data from DataFrames into SQLite database
 SQLite.load!(castles_df, db, "CastleDetails")
 SQLite.load!(reviews_df, db, "CastleUserReviews")
 
-#Create a little wrapper function that queries SQL and always returns a dataframe.
 function q(query::String, db::SQLite.DB)
-    result = DBInterface.execute(db, query) 
-    # |> DataFrame
+    result = DBInterface.execute(db, query) |> DataFrame
     return result
-end
+end ; # <-- ugh this semicolon.. 
 ```
 \newpage
 
-``` {Julia}
+# Run Some SQL
+``` {julia}
 castles_query = """
   select Name, Municipality, Country, User_Rating
   from CastleDetails 
@@ -78,40 +74,101 @@ ratings_query = """
   where Rating is not null
 """ 
 
-# c_r_join = """
-# SELECT 
-#     cd.Country,
-#     cd.Municipality,
-#     COUNT(cd.Name) AS TotalCastles,
-#     AVG(cd.User_Rating) as AvgUserRating
-# FROM 
-#     CastleDetails cd, CastleUserReviews cr
-# INNER JOIN 
-#     CastleUserReviews cr ON cd.Name = cr.Name
-# GROUP BY 
-#     cd.Country, cd.Municipality
-# ORDER BY 
-#     AvgUserRating, cd.Country, cd.Municipality
-# """
+castle_ratings_join_query = """
+SELECT 
+    cd.Country,
+    COUNT(DISTINCT cd.Name) AS TotalCastles,
+    AVG(cr.Rating) as AvgUserRating
+FROM 
+    CastleDetails cd
+INNER JOIN 
+    CastleUserReviews cr ON cd.Name = cr.Name
+WHERE
+    cd.Country is not null
+GROUP BY 
+    cd.Country
+ORDER BY 
+    TotalCastles DESC, AvgUserRating DESC;
 
-cas = q(castles_query , db) 
-rat = q(ratings_query, db)
-# c_r_join_group = execute_query(c_r_join, db)
+"""
 
+cas = q(castles_query , db);
+rat = q(ratings_query, db); 
+castle_ratings_join =q(castle_ratings_join_query, db);
 ```
-
-
-
+\newpage
+# A Quick Look At The Join Data
+*Note -> pretty tables is not as full featured as GT.*
 
 ```{julia}
-# using Gadfly, DataFrames
-# ratings_only = """
-#   select Rating
-#   from CastleUserReviews
-#   where Rating is not null
-# """ 
-# rat_o = execute_query(ratings_only, db)
-# p = Gadfly.plot(rat_o, y=:Rating, Geom.boxplot)
-# display(p)
+using PrettyTables
+pretty_table(first(castle_ratings_join, 30), header=names(castle_ratings_join))
 ```
+\newpage
+# The Best Castles!
+```{julia}
+using Gadfly
+
+p = plot(castle_ratings_join, 
+    x = :Country, 
+    y = :TotalCastles, 
+    color = :AvgUserRating,
+    Geom.bar,
+    Guide.xlabel("Country"), 
+    Guide.ylabel("Total Castles"),
+    Guide.colorkey(title="Average User Rating"),
+    Theme(bar_spacing=1mm)
+)
+display(p)
+```
+
+# Cool Command Syntax! 
+```{julia}
+#| eval: false
+using DataFrames
+filter(row -> row[:Country] == "Italy", castle_ratings_join)      # string matching  
+filter(row -> row[:AvgUserRating] >4 , castle_ratings_join)       # numerical filtering
+filter(row -> occursin("it", row[:Country]), castle_ratings_join) # country contains it
+
+using DataFramesMeta 
+@where(castle_ratings_join, ismissing.(:Country))                 #<-- so cool!! 
+# @where(df, (:column1 .== "Value1") .| (:column2 .> 10))
+# @where(df, in.(:column_name, Ref(["Value1", "Value2", "Value3"])))
+# @where(df, occursin.("substring", :column_name))
+# @where(df, (:column1 .> 10) .& (occursin.("substring", :column2)))
+
+using Statistics
+# Method 1: Fluent dataframe operations using anonymous functions
+# This approach utilizes the |> operator to pass the result from one function to another.
+# Anonymous functions (using the df -> ... syntax) provide the operations for each step.
+joined_df1 = castles_df |> 
+           df -> innerjoin(df, reviews_df, on=:Name, makeunique=true) |>
+           df -> filter(row -> !ismissing(row[:Country]), df) |>
+           df -> combine(groupby(df, :Country),
+                        nrow => :TotalCastles,
+                        :Rating => mean => :AvgUserRating) |>
+           df -> sort(df, [:TotalCastles, :AvgUserRating], rev=true)
+
+# Method 2: Fluent dataframe operations using the Chain.jl package
+# The Chain package provides the @chain macro that facilitates chaining operations 
+# in a more readable manner, especially for complex sequences of transformations.
+
+using Chain
+joined_df2 = @chain castles_df begin
+    innerjoin(_, reviews_df, on=:Name, makeunique=true)
+    filter(row -> !ismissing(row[:Country]), _)
+    combine(groupby(_, :Country),
+            nrow => :TotalCastles,
+            :Rating => mean => :AvgUserRating)
+    sort(_, [:TotalCastles, :AvgUserRating], rev=true)
+end
+
+```
+\newpage
+# What's Missing?
+* **Speed Tests: ** One of Julia's primary selling points is its speed, especially when compared to interpreted languages like R and Python. Though there are plenty of benchmarks online, real world experience with real world tasks could help form opinions 
+
+* **A GPU Demonstration: ** Julia's seamless GPU integration is a game-changer for heavy computational tasks. Demonstrating the conversion of a simple matrix function into native GPU code, and then benchmarking it, would be fascinating. 
+
+* **GTK and Julia - A Simple Application: ** Julia isn't just about number crunching. With its integration capabilities with GUI frameworks like GTK, for lightweight scientific type problems, it might be a plausible development platform.
 
