@@ -16,8 +16,8 @@ Utilize Visual Studio Code, Quarto markdown, SQL, and dataframes to navigate Jul
 Amidst machine learning giants like TensorFlow and spark.ml, Julia distinguishes itself for tailored model designs. It's sleek, rapid, and bolstered by industry leaders like NVidia for GPU operations.
 
 # Julia Insights
-1. **Positioned between Giants:** Julia sits between R and Python. Its syntax hints at Python, but the coding experience is reminiscent of R.
-1. ***Blazing Speed:** Julia applications compile into fast and light C binaries. Their performance amplifies even further when tailored for specific GPUs.
+1. **Positioned Between Giants:** Julia sits between R and Python. Its syntax hints at Python, but the coding experience is reminiscent of R.
+1. **Blazing Speed:** Julia applications compile into fast and light C binaries. Their performance amplifies even further when tailored for specific GPUs.
 1. **GTK Synergy:** In collaboration with GTK, Julia exhibits potential in software innovation — it could reshape tools like GIMP or Photoshop.
 1. **Specialized Focus:** Julia excels in managing series and dataframes. Yet, areas like logging, markdown chunk processing, and comprehensive LaTeX support are secondary to its HPC features.
 1. **Adoption Barriers:** Julia faces the same adoption challenges as Python and R. It is not object-oriented, presents a steep learning curve, and its integration into CI/CD pipelines can be intricate. It doesn't quite align with enterprise-friendly languages such as Object-Oriented Python, Scala, or C#.
@@ -106,6 +106,9 @@ pretty_table(first(castle_ratings_join, 30), header=names(castle_ratings_join))
 ```
 \newpage
 # The Best Castles!
+While Julia doesn't have ggplot2, it does have Gadfly, which is also inspired by the Grammar of Graphics principles. Also, much like how Python's Pandas provides built-in basic plotting functionalities, various Julia libraries have integrated plotting functions.
+
+
 ```{julia}
 using Gadfly
 
