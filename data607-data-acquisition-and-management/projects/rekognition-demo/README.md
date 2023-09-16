@@ -2,7 +2,7 @@
 *by: Tony Fraser, 16 Sept 2023*
 *for: fellow classmates of CUNY 607* 
 
-Written in python, this demo shows one how to use the rekognition api to extract metadata from photo and video content.
+Written in python, this demo shows one how to use the Amazon Web Services Rekognition api to extract metadata from photo content. The API does a lot more than this, but it's enough plant the seed that sometimes pay-per-use API's are better than rolling your own solution.
 
 * Rekognition overview: [https://aws.amazon.com/rekognition/](https://aws.amazon.com/rekognition/)
 * API documentation: [https://docs.aws.amazon.com/cli/latest/reference/rekognition/](https://docs.aws.amazon.com/cli/latest/reference/rekognition/)
