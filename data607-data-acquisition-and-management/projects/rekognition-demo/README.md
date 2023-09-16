@@ -32,3 +32,4 @@ Written in python, this demo shows one how to use the rekognition api to extract
     .venv/bin/pip freeze | xargs pip uninstall -y 
     .venv/bin/python -m pip install -r ./requirements.txt
     ```
+
