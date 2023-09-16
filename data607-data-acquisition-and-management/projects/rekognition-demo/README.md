@@ -1,20 +1,20 @@
 # AWS Rekognition Demo
-*author: Tony Fraser*
-*created: 16 Sept 2023* 
+*by: Tony Fraser, 16 Sept 2023*
+*for: fellow classmates of CUNY 607* 
 
+Written in python, this demo shows one how to use the rekognition api to extract metadata from photo and video content.
 
-* Written in python, this demo shows one how to use the rekognition api to extract metadata from photo and video content.
-* Intended Audience: fellow classmates of 607 data acquisition and management
-* Overview: [https://aws.amazon.com/rekognition/](https://aws.amazon.com/rekognition/)
-* API: [https://docs.aws.amazon.com/cli/latest/reference/rekognition/](https://docs.aws.amazon.com/cli/latest/reference/rekognition/)
+* Rekognition overview: [https://aws.amazon.com/rekognition/](https://aws.amazon.com/rekognition/)
+* API documentation: [https://docs.aws.amazon.com/cli/latest/reference/rekognition/](https://docs.aws.amazon.com/cli/latest/reference/rekognition/)
+
 
 ## Assumes:
-1. You alreday have python3 installed somewhere, and you can use it to setup your virtualenv. Verify python3 with this command: 
+1. You already have python3 installed somewhere so you can use it to setup your virtualenv. Verify python3 with this command: 
     ```sh
     hurricane:cuny-datascience afraser$ python3 --version
     Python 3.11.5
     ```
-1. You already have the awscli set up and working, and that you already have correctly set up `~/.aws/credentials`. If you have it running locally, your boto libraries will work with your virtualenv. Test with this command:  
+1. You already have the awscli set up and working on your mac, which included a correct setup of `~/.aws/credentials`. *If you have it running locally, your boto library will work with your virtualenv.* Test with this command:  
     ```sh
     hurricane:cuny-datascience afraser$ aws sts get-caller-identity
     {
