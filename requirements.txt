@@ -1,8 +1,9 @@
 pip
 ipython
 install-jdk
+import-java
 wheel
-awscli
+awscliv2
 pyspark==3.3.0
 pyarrow
 numpy
@@ -20,6 +21,5 @@ matplotlib
 scipy
 ipykernel
 sympy
-openjdk-11-jdk
 #Cython>=0.22 and NumPy are required.
 
