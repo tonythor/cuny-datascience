@@ -5,7 +5,7 @@
 
 * Written in python, this demo shows one how to use the rekognition api to extract metadata from photo and video content.
 * Intended Audience: fellow classmates of 607 data acquisition and management
-* More on (https://aws.amazon.com/rekognition/)([https://aws.amazon.com/rekognition/])
+* More: [https://aws.amazon.com/rekognition/](https://aws.amazon.com/rekognition/)
 
 
 ## Assumes:
