@@ -1,5 +1,6 @@
 # AWS Rekognition Demo
 *by: Tony Fraser, 16 Sept 2023*
+
 *for: fellow classmates of CUNY 607* 
 
 Written in python, this demo shows one how to use the rekognition api to extract metadata from photo and video content.
