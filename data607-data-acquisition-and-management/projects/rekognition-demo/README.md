@@ -15,7 +15,7 @@ Written in python, this demo shows one how to use the rekognition api to extract
     hurricane:cuny-datascience afraser$ python3 --version
     Python 3.11.5
     ```
-1. You already have the awscli set up and working on your mac, which included a correct setup of `~/.aws/credentials`. *If you have it running locally, your boto library will work with your virtualenv.* Test with this command:  
+1. You already have the awscli set up and working on your mac, which includes the correct setup of `~/.aws/credentials`. *If you have it running locally, your boto library will work with your virtualenv!* Test with this command:  
     ```sh
     hurricane:cuny-datascience afraser$ aws sts get-caller-identity
     {
