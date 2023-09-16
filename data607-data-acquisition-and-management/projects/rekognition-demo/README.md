@@ -24,12 +24,12 @@ Written in python, this demo shows one how to use the rekognition api to extract
         "Arn": "arn:aws:iam::11111111111111111:user/tony.fraser"
     }
     ```
-1. You  have a virtualenv created from a `requirements.txt`` like the one in the root of this project. Building your virtualenv would look roughly like this:
+1. You  have a virtualenv created from a `requirements.txt` like the one in the root of this project. Building your virtualenv would look roughly like this:
     ```sh
     python3 -m venv .venv
     source .venv/bin/activate
     .venv/bin/python -m pip install --upgrade pip 
-    .venv/bin/pip freeze | xargs pip uninstall -y 
+    ##if necessary)## .venv/bin/pip freeze | xargs pip uninstall -y 
     .venv/bin/python -m pip install -r ./requirements.txt
     ```
 
