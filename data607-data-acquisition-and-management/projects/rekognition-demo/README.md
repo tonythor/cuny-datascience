@@ -14,17 +14,11 @@
         "Arn": "arn:aws:iam::11111111111111111:user/tony.fraser"
     }
     ```
-
-
-<!-- # 1. get all teh AWS client stuff on your mac.
-# 1.a. brew install awscli, etc. 
-# 1.b. make sure ~/.aws/credentials is working
-
-# 2. Set up requriments 
-## use requirements.txt in the root of this project to set up your virtualenv.
-# python3 -m venv .venv
-# source .venv/bin/activate
-# .venv/bin/python -m pip install --upgrade pip 
-##(if necessary ->)## pip freeze | xargs pip uninstall -y  
-# .venv/bin/python -m pip install -r ./requirements.txt
- -->
+1. You already have your virtual env set up. Replicate this virtualenv with requirements.txt in the root of this project. Building your virtualenv would look roughly like this:
+    ```sh
+    python3 -m venv .venv
+    source .venv/bin/activate
+    .venv/bin/python -m pip install --upgrade pip 
+    .venv/bin/pip freeze | xargs pip uninstall -y 
+    .venv/bin/python -m pip install -r ./requirements.txt
+    ```
