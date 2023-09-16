@@ -5,17 +5,15 @@
 
 
 ## Assumes:
-1. You already have the awscli set up and working, and that you already have correctly set up `~/.aws/credentials``, Test with this command.  
-
-
-```sh
-(.venv) hurricane:cuny-datascience afraser$ aws sts get-caller-identity
-{
-    "UserId": "ABCDEFDGHIJKLOMNOPRS",
-    "Account": "11111111111111111",
-    "Arn": "arn:aws:iam::11111111111111111:user/tony.fraser"
-}
-```
+1. You already have the awscli set up and working, and that you already have correctly set up `~/.aws/credentials`. Test with this command:  
+    ```sh
+    (.venv) hurricane:cuny-datascience afraser$ aws sts get-caller-identity
+    {
+        "UserId": "ABCDEFDGHIJKLOMNOPRS",
+        "Account": "11111111111111111",
+        "Arn": "arn:aws:iam::11111111111111111:user/tony.fraser"
+    }
+    ```
 
 
 <!-- # 1. get all teh AWS client stuff on your mac.
