@@ -1,13 +1,16 @@
 # AWS Rekognition Demo
 *by: Tony Fraser, 16 Sept 2023*
-
 *for: fellow classmates of CUNY 607* 
 
 Written in python, this demo shows one how to use the rekognition api to extract metadata from photo and video content.
 
 * Rekognition overview: [https://aws.amazon.com/rekognition/](https://aws.amazon.com/rekognition/)
 * API documentation: [https://docs.aws.amazon.com/cli/latest/reference/rekognition/](https://docs.aws.amazon.com/cli/latest/reference/rekognition/)
+* Pricing: [https://aws.amazon.com/rekognition/pricing/](https://aws.amazon.com/rekognition/pricing/)
 
+
+## Look at:
+[./wrapper_by_tf.py](wrapper_by_tf.py) and [./output.log](./output.log)
 
 ## Assumes:
 1. You already have python3 installed somewhere so you can use it to setup your virtualenv. Verify python3 with this command: 
