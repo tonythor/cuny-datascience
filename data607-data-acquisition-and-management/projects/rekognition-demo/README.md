@@ -5,8 +5,8 @@
 
 * Written in python, this demo shows one how to use the rekognition api to extract metadata from photo and video content.
 * Intended Audience: fellow classmates of 607 data acquisition and management
-* More: [https://aws.amazon.com/rekognition/](https://aws.amazon.com/rekognition/)
-
+* Overview: [https://aws.amazon.com/rekognition/](https://aws.amazon.com/rekognition/)
+* API: [https://docs.aws.amazon.com/cli/latest/reference/rekognition/](https://docs.aws.amazon.com/cli/latest/reference/rekognition/)
 
 ## Assumes:
 1. You alreday have python3 installed somewhere, and you can use it to setup your virtualenv. Verify python3 with this command: 
