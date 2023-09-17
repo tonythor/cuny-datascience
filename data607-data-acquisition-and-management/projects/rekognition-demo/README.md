@@ -7,7 +7,6 @@ This chunk of python code makes API calls to the Amazon Rekognition API. Basical
 
 The AWS Rekognition API does a _lot_ more than tiny program demonstrates, but hopefully it sets the seed that sometimes using an existing compute API's might be the right way go to. 
 
-
 * Rekognition overview: [https://aws.amazon.com/rekognition/](https://aws.amazon.com/rekognition/)
 * API documentation: [https://docs.aws.amazon.com/cli/latest/reference/rekognition/](https://docs.aws.amazon.com/cli/latest/reference/rekognition/)
 * Pricing: [https://aws.amazon.com/rekognition/pricing/](https://aws.amazon.com/rekognition/pricing/)
@@ -16,6 +15,14 @@ The AWS Rekognition API does a _lot_ more than tiny program demonstrates, but ho
 ## Look closely at:
 * [./wrapper_by_tf.py](wrapper_by_tf.py)
 * [./output.log](./output.log)
+
+## Why did I choose this as my demo?
+Multiple times in my career I've had build systems to extract metadata from images, pdfs, word docs, quicktimes, etc. On multiple occasions, these rocket-science-complex projects were person-years worth of effort. With the introduction of open source in the 2010's it got a little easier, but everything changed when cloud took over. Now days, AWS, GCP and Azure have hundreds of API's data scientists can use
+
+This particular demo took me about eight hours to set up and get working. 20 years ago, my team did something similar and it was one of those person-year long projects. 
+
+The point is, sometimes you have to roll your own system, sometimes you don't. Think about it before you do either. This is demo is charged by API call. If we were doing a billion of API calls for non profit, it might not make sense. If you're working on a startup and tying to push something out the door by enxt month, pay per use api's might be perfect.
+
 
 ## Demo assumes:
 1. You already have python3 installed somewhere so you can use it to setup your virtualenv. Verify python3 with this command: 
@@ -42,9 +49,3 @@ The AWS Rekognition API does a _lot_ more than tiny program demonstrates, but ho
     ```
 
 
-## Why did I choose this as my demo?
-Multiple times in my career I've had build systems to extract metadata from images, pdfs, word docs, quicktimes, etc. On multiple occasions, these rocket-science-complex projects were person-years worth of effort. With the introduction of open source in the 2010's it got a little easier, but everything changed when cloud took over. Now days, AWS, GCP and Azure have hundreds of API's data scientists can use
-
-This particular demo took me about eight hours to set up and get working. 20 years ago, my team did something similar and it was one of those person-year long projects. 
-
-The point is, sometimes you have to roll your own system, sometimes you don't. Think about it before you do either. This is demo is charged by API call. If we were doing a billion of API calls for non profit, it might not make sense. If you're working on a startup and tying to push something out the door by enxt month, pay per use api's might be perfect.
