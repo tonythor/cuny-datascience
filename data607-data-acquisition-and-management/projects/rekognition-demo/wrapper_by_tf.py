@@ -1,10 +1,9 @@
 import boto3
 import json
-from rekognition_image import RekognitionImage
-from rekognition_objects import RekognitionFace, RekognitionCelebrity, RekognitionText
 import logging
 from typing import List
-
+from rekognition_image import RekognitionImage
+from rekognition_objects import RekognitionFace, RekognitionCelebrity, RekognitionText
 
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
@@ -18,7 +17,6 @@ def p_url(_p: str, bucket: str = "tonyfraser_public") -> str:
 def log_f(_string, _filepath="./output.log"):
     with open(_filepath, 'a') as f:
         f.write(f"{_string}\n")
-
 
 
 log_f("---------------------------------------------")
