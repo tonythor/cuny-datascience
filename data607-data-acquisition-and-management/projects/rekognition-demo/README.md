@@ -13,7 +13,7 @@ The AWS Rekognition API does a _lot_ more than tiny program demonstrates, but ho
 * Pricing: [https://aws.amazon.com/rekognition/pricing/](https://aws.amazon.com/rekognition/pricing/)
 
 
-## Look closely at:
+## The Demo mostly in these two files
 * [./wrapper_by_tf.py](wrapper_by_tf.py)
 * [./output.log](./output.log)
 
