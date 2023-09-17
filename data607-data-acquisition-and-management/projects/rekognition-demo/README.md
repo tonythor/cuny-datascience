@@ -1,5 +1,6 @@
 # AWS Rekognition Demo
 *by: Tony Fraser, 16 Sept 2023*
+
 *for: fellow classmates of CUNY 607* 
 
 ## About this demo
