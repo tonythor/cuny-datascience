@@ -18,9 +18,9 @@ The AWS Rekognition API does a _lot_ more than tiny program demonstrates, but ho
 * [./output.log](./output.log)
 
 ## Why did I choose this as my demo?
-Many times in my career I've built systems to extract metadata from images, pdfs, word docs, videos, etc. These rocket-science-complex projects were often person-years worth of effort. In the early 2000's, extraction got a little easer due to the momentum of open source. Later on though, when compute microservices like Rekognition started to be offered via API, everything totally changed. Now days, AWS, GCP and Azure have hundreds of API's data scientists can use. Picking underlying technology, like metadata extraction, is now more like picking what store to buy a commodity from.
+Many times in my career I've built systems to extract metadata from images, pdfs, word docs, videos, etc. These rocket-science-complex projects were often person-years worth of effort. In the early 2000's, extraction got a little easer due to the momentum of open source. Later though, when compute microservices like Rekognition started to be offered via API, everything totally changed. Now days, AWS, GCP and Azure have hundreds of API's data scientists can use. Picking underlying technology, like metadata extraction, is now more like picking what store to buy a commodity from.
 
-The point of this demo is, sometimes you have to roll your own systems and build the rocket-science-complex tools, and sometimes you don't. From somebody that has done both, I only suggest think first before you pick. This is demo cost per API call. A billion of API calls for non profit might not make sense, but if you're working with a startup trying to build a new product by October, pay per use API's might be perfect. 
+The point of this demo is, sometimes you have to roll your own systems and build the rocket-science-complex tools, and sometimes you don't. From somebody that has done both, I only suggest think first before you pick. This is demo cost per API call. A billion of API calls for nonprofit might not make sense, but if you're working with a startup trying to build a new product by October, pay per use API's might be perfect. 
 
 ## Demo assumes:
 1. You already have python3 installed somewhere so you can use it to setup your virtualenv. Verify python3 with this command: 
