@@ -2,17 +2,22 @@
 *by: Tony Fraser, 16 Sept 2023*
 *for: fellow classmates of CUNY 607* 
 
-Written in python, this demo shows one how to use the Amazon Web Services Rekognition api to extract metadata from photo content. The API does a lot more than this, but it's enough plant the seed that sometimes pay-per-use API's are better than rolling your own solution.
+## About this demo
+This chunk of python code makes API calls to the Amazon Rekognition API. Basically, it sends up pictures to AWS for AWS to scan. AWS then returns metadata about the pictures. Within that return data, among other things, one can find out if a picture contains skateboarders, happy little kids, streets named Broadway, or even Will Smith drinking a glass of wine. 
+
+The AWS Rekognition API does a _lot_ more than tiny program demonstrates, but hopefully it sets the seed that sometimes using an existing compute API's might be the right way go to. 
+
 
 * Rekognition overview: [https://aws.amazon.com/rekognition/](https://aws.amazon.com/rekognition/)
 * API documentation: [https://docs.aws.amazon.com/cli/latest/reference/rekognition/](https://docs.aws.amazon.com/cli/latest/reference/rekognition/)
 * Pricing: [https://aws.amazon.com/rekognition/pricing/](https://aws.amazon.com/rekognition/pricing/)
 
 
-## Look at:
-[./wrapper_by_tf.py](wrapper_by_tf.py) and [./output.log](./output.log)
+## Look closely at:
+* [./wrapper_by_tf.py](wrapper_by_tf.py)
+* [./output.log](./output.log)
 
-## Assumes:
+## Demo assumes:
 1. You already have python3 installed somewhere so you can use it to setup your virtualenv. Verify python3 with this command: 
     ```sh
     hurricane:cuny-datascience afraser$ python3 --version
@@ -36,3 +41,10 @@ Written in python, this demo shows one how to use the Amazon Web Services Rekogn
     .venv/bin/python -m pip install -r ./requirements.txt
     ```
 
+
+## Why did I choose this as my demo?
+Multiple times in my career I've had build systems to extract metadata from images, pdfs, word docs, quicktimes, etc. On multiple occasions, these rocket-science-complex projects were person-years worth of effort. With the introduction of open source in the 2010's it got a little easier, but everything changed when cloud took over. Now days, AWS, GCP and Azure have hundreds of API's data scientists can use
+
+This particular demo took me about eight hours to set up and get working. 20 years ago, my team did something similar and it was one of those person-year long projects. 
+
+The point is, sometimes you have to roll your own system, sometimes you don't. Think about it before you do either. This is demo is charged by API call. If we were doing a billion of API calls for non profit, it might not make sense. If you're working on a startup and tying to push something out the door by enxt month, pay per use api's might be perfect.
