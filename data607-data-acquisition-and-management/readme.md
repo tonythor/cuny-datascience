@@ -1,7 +1,7 @@
 # Data 607
 
 ## Assignments
-* nyc wrecks : [zip](./week1/assignment/assignment1.zip)|[quarto](./week1//assignment/assignment1.zip) 
+* nyc wrecks : [quarto](./week1//assignment/assignment1.qmd) | [zip](./week1/assignment/assignment1.zip)
 * julia [pdf](./week2/julia.pdf) | [quarto](./week2/julia.qmd)
 
 ## Projects
