@@ -4,7 +4,7 @@
 *for: fellow classmates of CUNY 607* 
 
 ## About this demo
-This chunk of python code makes API calls to the Amazon Rekognition API. Basically, it sends up pictures to AWS for AWS to scan. AWS then returns metadata about the pictures. Within that return data, among other things, one can find out if a picture contains skateboarders, happy little kids, streets named Broadway, or even Will Smith drinking a glass of wine. 
+This chunk of python code makes API calls to the Amazon Rekognition API. Basically, this code sends up pictures to AWS, then AWS scans them and then returns metadata about what is in the pictures. Within that returned data, among other things, one can find out if a picture contains skateboarders, happy little kids, streets named Broadway, or even Will Smith. 
 
 The AWS Rekognition API does a _lot_ more than tiny program demonstrates, but hopefully it sets the seed that sometimes using an existing compute API's might be the right way go to. 
 
@@ -18,12 +18,9 @@ The AWS Rekognition API does a _lot_ more than tiny program demonstrates, but ho
 * [./output.log](./output.log)
 
 ## Why did I choose this as my demo?
-Multiple times in my career I've had build systems to extract metadata from images, pdfs, word docs, quicktimes, etc. On multiple occasions, these rocket-science-complex projects were person-years worth of effort. With the introduction of open source in the 2010's it got a little easier, but everything changed when cloud took over. Now days, AWS, GCP and Azure have hundreds of API's data scientists can use
+Many times in my career I've built systems to extract metadata from images, pdfs, word docs, videos, etc. These rocket-science-complex projects were often person-years worth of effort. In the early 2000's, extraction got a little easer due to the momentum of open source. Later on though, when compute microservices like Rekognition started to be offered via API, everything totally changed. Now days, AWS, GCP and Azure have hundreds of API's data scientists can use. Picking underlying technology, like metadata extraction, is now more like picking what store to buy a commodity from.
 
-This particular demo took me about eight hours to set up and get working. 20 years ago, my team did something similar and it was one of those person-year long projects. 
-
-The point is, sometimes you have to roll your own system, sometimes you don't. Think about it before you do either. This is demo is charged by API call. If we were doing a billion of API calls for non profit, it might not make sense. If you're working on a startup and tying to push something out the door by enxt month, pay per use api's might be perfect.
-
+The point of this demo is, sometimes you have to roll your own systems and build the rocket-science-complex tools, and sometimes you don't. From somebody that has done both, I only suggest think first before you pick. This is demo cost per API call. A billion of API calls for non profit might not make sense, but if you're working with a startup trying to build a new product by October, pay per use API's might be perfect. 
 
 ## Demo assumes:
 1. You already have python3 installed somewhere so you can use it to setup your virtualenv. Verify python3 with this command: 
@@ -45,7 +42,7 @@ The point is, sometimes you have to roll your own system, sometimes you don't. T
     python3 -m venv .venv
     source .venv/bin/activate
     .venv/bin/python -m pip install --upgrade pip 
-    ##if necessary)## .venv/bin/pip freeze | xargs pip uninstall -y 
+    ##if necessary## .venv/bin/pip freeze | xargs pip uninstall -y 
     .venv/bin/python -m pip install -r ./requirements.txt
     ```
 
