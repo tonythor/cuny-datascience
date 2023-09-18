@@ -1,0 +1,17 @@
+Global Baseline Estimate Extra Credit
+Attached Files:
+File MovieRatings.xlsx (29.643 KB)
+
+Using the information you collected on movie ratings, implement a Global Baseline Estimate recommendation system in R 
+(or Julia...)  Most recommender systems use personalized algorithms like “content management” and “item-item 
+collaborative filtering.” Sometimes non-personalized recommenders are also useful or necessary. One of the
+ best non-personalized recommender system algorithms is the “Global Baseline Estimate.
+
+
+The job here is to use the survey data collected and write the R code that makes a movie recommendation 
+using the Global Baseline Estimate algorithm.  Please see the attached spreadsheet for implementation details. You may work 
+with a partner on this project, but either person should be willing and able to present your code in class!
+
+
+[10 points / 1%]
+Due end of day Tuesday, 19-Sep-2023.
