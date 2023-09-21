@@ -100,6 +100,21 @@ by_borough_table
 ```
 ## R
 ```r
+# table, basically a shortcut for groupby/count
+> data_vector <- c("apple", "banana", "apple", "orange", "apple", "banana")
+table(data_vector) 
+data_vector
+ apple banana orange 
+     3      2      1 
+
+#sample 
+sim_unfair_coin<-sample(coin_outcomes,size =100,replace =TRUE,prob =c(0.2,0.8))
+> table(sim_unfair_coin) 
+sim_unfair_coin
+heads tails 
+   17    83 
+
+
 #long strings
 long_string <- paste("This is a very long string",
                      "that I want to break across two lines.")
