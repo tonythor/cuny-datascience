@@ -60,6 +60,9 @@ df_na <- df %>% filter(is.na(column1)) # Handling NA
 # if one column has a string add another
 df_new <- df %>%
   mutate(newColumn = if_else(str_detect(oldColumn, "appletv"), "appleTV", "notAppleTv"))
+
+df <- df %>%
+  mutate(made_shot = if_else(basket == 1, "Y", "N"))
 ```
 
 
