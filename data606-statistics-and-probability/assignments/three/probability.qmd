@@ -1,6 +1,6 @@
 ---
 title: "Probability"
-author: ""
+author: "by Tony Fraser, 22 Sept 2023"
 output:
   pdf_document: default
 ---
@@ -153,7 +153,7 @@ ggsave("kobe_streak_plot.png", plot = p, width = 2, height = 2)
 \begin{minipage}{0.45\textwidth}
 \textit{The previous chart is clear. For this time period, he had about two dozen single point streaks, then about five two and three shot streaks, and then only a couple of four shot streaks.}
 
-\textit{We're likely studying this data set because it does appear that if Kobe hits a second shot, he is on a streak to hit a third."}
+\textit{We're likely studying this data set because it does appear that if Kobe hits a second shot, he is on a streak to hit a third.}
 
 \textit{I am including the graph to the right only because asked for in the question.}
 
@@ -231,6 +231,8 @@ sim_unfair_coin <- sample(coin_outcomes, size = 100, replace = TRUE,
     about setting a seed below.
 
 **3. Insert your answer here**
+
+_console output_
 ``` r
 #|eval = false 
 # this is from my r console.
@@ -240,12 +242,15 @@ sim_unfair_coin <- sample(coin_outcomes, size = 100, replace = TRUE,
 heads tails 
    18    82  # <-- I expect 18 heads, and 82 tails. 
 ```
+
+_code block output_
 ```{r}
 set.seed(123)
 coin_outcomes <- c("heads", "tails")
 samp <- sample(coin_outcomes, size = 100, replace = TRUE, prob = c(0.2, 0.8))
 print(table(samp))
 ```
+_perfect!_ 
 
 <div id="boxedtext">
 **A note on setting a seed:** Setting a seed will cause R to select the same sample each time you knit your document. This will make sure your results don't change each time you knit, and it will also ensure reproducibility of your work (by setting the same seed it will be possible to reproduce your results). You can set a seed like this:
@@ -254,7 +259,7 @@ print(table(samp))
 set.seed(123)                 # make sure to change the seed
 ```
 
-The number above is completely arbitraty. If you need inspiration, you can use your ID, birthday, or just a random string of numbers. The important thing is that you use each seed only once in a document. Remember to do this **before** you sample in the exercise above.
+The number above is completely arbitrary. If you need inspiration, you can use your ID, birthday, or just a random string of numbers. The important thing is that you use each seed only once in a document. Remember to do this **before** you sample in the exercise above.
 </div>
 
 In a sense, we've shrunken the size of the slip of paper that says "heads", making it less likely to be drawn, and we've increased the size of the slip of paper saying "tails", making it more likely to be drawn. When you simulated the fair coin, both slips of paper were the same size. This happens by default if you don't provide a `prob` argument; all elements in the `outcomes` vector have an equal probability of being drawn.
@@ -303,7 +308,7 @@ Both data sets represent the results of 133 shot attempts, each with the same sh
 
 **5** Using `calc_streak`, compute the streak lengths of `sim_basket`, and save the results in a data frame called `sim_streak`.
 
-**Insert your answer here**
+**5. Insert your answer here**
 ```{r build-sim-streak}
 set.seed(123)    
 sim_streak <- calc_streak(sim_basket)
@@ -314,7 +319,7 @@ table(sim_streak)
 
 **6** Describe the distribution of streak lengths. What is the typical streak length for this simulated independent shooter with a 45% shooting percentage? How long is the player's longest streak of baskets in 133 shots? Make sure to include a plot in your answer.
 
-**Insert your answer here**
+**6. Insert your answer here**
 
 ```{r plot-sinm_shooter}
 
@@ -335,14 +340,49 @@ ggsave("sim_streak_plot.png", plot = p, width = 2, height = 2)
 \end{minipage} 
 
 
+---
+
 **7** 
 If you were to run the simulation of the independent shooter a second time, how would you expect its streak distribution to compare to the distribution from the question above? Exactly the same? Somewhat similar? Totally  different? Explain your reasoning.
 
-**Insert your answer here**
-*In a shell or in RStudio, and because I set the seed, I should expect the simulation to produce the same results. It doesn't though. Every time I call the `sample` method the seed resets. Perhaps it is because I am using Visual Studio, I don't really know, but it doesn't matter.
+**7. Insert your answer here**
+In a shell or in RStudio, and because I set the seed, I expect the simulation to produce the same results... but it doesn't. Every time I call the `sample` method the seed resets. Perhaps it is because I am using Visual Studio, I don't really know, but it doesn't matter. I can reproduce my code by resetting the seed before I call the `sample` method.
 
+---
 
-**8** How does Kobe Bryant's distribution of streak lengths compare to the distribution of streak lengths for the simulated shooter? Using this comparison, do you have evidence that the hot hand model fits Kobe's  shooting patterns? Explain.
+**8** How does Kobe Bryant's distribution of streak lengths compare to the distribution of streak lengths for the simulated shooter? Using this comparison, do you have evidence that the hot hand model fits Kobe's shooting patterns? Explain.
 
 **8. Insert your answer here**
+The sample size is too small to make any real predictions or assumptions. However, with this data alone, it does appear that when Kobe shoots his shots are not independent of each other. 
+
+Consider the following again:
+
+```r
+> table(kobe_streak) 
+length
+ 0  1  2  3  4 
+39 24  6  6  1 
+
+> table(sim_streak) 
+length
+ 0  1  2  3  5  6 
+51 17  8  3  1  1 
+```
+
+Now let's merge those together. 
+
+| shooter | 1/0 | 2/1 | 3/2  | 4/3 | ... |
+| ------- | --- | --- | ---  | -- | -----|
+|kobe     | 61% | 25% | 100% | 17% | ..  | 
+|sim      | 33% | 47% | 38%  |  0% | ...  | 
+
+This table is a subset of percentages of moving from an N shot streak to an to N + 1 shot streak. For example, in Kobe's 2/1 column, he moved from a one point streak (24 one shot streaks) to a 2 point streak (6 two shot streaks) 6/24 = 25% of the time. And 100% of the time, he flowed from a two shot to a three shot streak. The sim shooter has a little less variation, a little closer to 45% each time.
+
+All that said, if this were the only data we had and Kobe just made a second shot in a row, I'd say give him the ball, and not the sim shooter.
+
+
+
+
+
+
 
