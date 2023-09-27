@@ -4,14 +4,14 @@ library(magrittr)
 library(dplyr)
 library(purrr)
 
-
 ## ----------------------------------------------------------------------------------------------------
 ##  Helper Functions
 ## ----------------------------------------------------------------------------------------------------
-
 file_to_df <- function(file_name) {
+  #load the file, it's in same directory as this R file.
+
   lines <- readLines(file_name)
-  # first, there's a bunch of lines in these files that are all hypens.
+  # first, there's a bunch of lines in these files that are all hyphens.
   # let's get rid of those, and at the same time we'll chop off the two
   # top lines, which are static column headers.
 
@@ -93,7 +93,7 @@ generate_rating_sequence <- function(player_row, df) {
 }
 
 ## ----------------------------------------------------------------------------------------------------
-## Main projgram
+## Main program
 ## ----------------------------------------------------------------------------------------------------
 
 # load the raw data into the base dataframe
@@ -145,3 +145,20 @@ final_format <- final_join %>%
 
 file_name_csv <- str_replace(file_name, "txt", "csv")
 write.csv(final_format, file = file_name_csv,     append = FALSE, quote = FALSE, row.names = FALSE )
+
+
+# Head of final CSV file:
+
+# Player’s Name,Player’s State,Total Number of Points,Player’s Pre-Rating,Average Pre Chess Rating of Opponents
+# GARY HUA, ON,6.0,1794,1605
+# DAKSHESH DARURI, MI,6.0,1553,1469
+# ADITYA BAJAJ, MI,6.0,1384,1564
+# PATRICK H SCHILLING, MI,5.5,1716,1574
+# HANSHI ZUO, MI,5.5,1655,1501
+# HANSEN SONG, OH,5.0,1686,1519
+# GARY DEE SWATHELL, MI,5.0,1649,1372
+# EZEKIEL HOUGHTON, MI,5.0,1641,1468
+# STEFANO LEE, ON,5.0,1411,1523
+# ANVIT RAO, MI,5.0,1365,1554
+# CAMERON WILLIAM MC LEMAN, MI,4.5,1712,1468
+# KENNETH J TACK, MI,4.5,1663,1506
