@@ -5,6 +5,9 @@ library(dplyr)
 library(purrr)
 
 
+## ----------------------------------------------------------------------------------------------------
+##  Helper Functions
+## ----------------------------------------------------------------------------------------------------
 
 file_to_df <- function(file_name) {
   lines <- readLines(file_name)
@@ -89,10 +92,12 @@ generate_rating_sequence <- function(player_row, df) {
   return(result)
 }
 
-file_name <- "act.txt"
-file_name_csv <- str_replace(file_name, "txt", "csv")
+## ----------------------------------------------------------------------------------------------------
+## Main projgram
+## ----------------------------------------------------------------------------------------------------
 
 # load the raw data into the base dataframe
+file_name <- "act.txt"
 df <- file_to_df(file_name)
 
 
@@ -107,7 +112,7 @@ three_columns_df <- do.call(rbind, result_list)
 ## left join them. 
 final_join <- left_join(df, three_columns_df, by = "playersName")
 
-# > glimpse(final_join) 
+# > glimpse(final_join)
 # Rows: 64
 # Columns: 14
 # $ playersName     <chr> "GARY HUA", "DAKSHESH DARURI", "ADITYA BAJAJ", "PATRIC…
@@ -125,7 +130,7 @@ final_join <- left_join(df, three_columns_df, by = "playersName")
 # $ opponentRatings <I<list>> 1436, 15...., 1175, 91...., 1641, 95...., 1363, 15…
 # $ avgRatings      <dbl> 1605, 1469, 1564, 1574, 1501, 1519, 1372, 1468, 1523, …
 
-# perfect. Now we delete exta columns, reorder, rename to spec, and save to file.
+# perfect. Now we delete extra columns, reorder, rename to spec, and write to file.
 
 final_format <- final_join %>%
   select(-c("r1", "r2", "r3", "r4", "r5", "r6", "r7", "opponentRatings", "postRating")) %>%
@@ -138,4 +143,5 @@ final_format <- final_join %>%
     "Average Pre Chess Rating of Opponents" = avgRatings
   )
 
- write.csv(final_format, file = file_name_csv,     append = FALSE, quote = FALSE, row.names = FALSE )
+file_name_csv <- str_replace(file_name, "txt", "csv")
+write.csv(final_format, file = file_name_csv,     append = FALSE, quote = FALSE, row.names = FALSE )
