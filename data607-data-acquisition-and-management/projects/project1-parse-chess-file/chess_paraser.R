@@ -148,7 +148,6 @@ write.csv(final_format, file = file_name_csv,     append = FALSE, quote = FALSE,
 
 
 # Head of final CSV file:
-
 # Player’s Name,Player’s State,Total Number of Points,Player’s Pre-Rating,Average Pre Chess Rating of Opponents
 # GARY HUA, ON,6.0,1794,1605
 # DAKSHESH DARURI, MI,6.0,1553,1469
@@ -156,9 +155,3 @@ write.csv(final_format, file = file_name_csv,     append = FALSE, quote = FALSE,
 # PATRICK H SCHILLING, MI,5.5,1716,1574
 # HANSHI ZUO, MI,5.5,1655,1501
 # HANSEN SONG, OH,5.0,1686,1519
-# GARY DEE SWATHELL, MI,5.0,1649,1372
-# EZEKIEL HOUGHTON, MI,5.0,1641,1468
-# STEFANO LEE, ON,5.0,1411,1523
-# ANVIT RAO, MI,5.0,1365,1554
-# CAMERON WILLIAM MC LEMAN, MI,4.5,1712,1468
-# KENNETH J TACK, MI,4.5,1663,1506
