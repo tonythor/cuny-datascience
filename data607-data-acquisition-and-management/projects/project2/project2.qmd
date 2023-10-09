@@ -1,0 +1,126 @@
+---
+title: "Tidy Datasets"
+author: "Tony Fraser"
+output:
+  pdf_document: default
+  latex_engine: xelatex
+monofont: 'Menlo'
+monofontoptions: 
+  - Scale=0.75
+---
+
+# Data Set 1: Rain Rain NOAAway
+NOAA is one of the biggest publishers of global weather data. Most of the stuff the publish you have to FTP down, but I found this subset up on a web server. It's perfect for this project!
+
+![](rain.jpg){width=70%}
+
+
+## NOAA Process Flow:
+
+1. Go the main url, scrape all the US state links.
+2. For each state, scrape the cities. 
+3. For each city, download the city file.
+4. For each file, get just the precipitation data. 
+5. Finish with a three column dataset, yesterday, month_to_date, and station file.
+
+\newpage
+
+## NOAA Scraping and Parsing Functions
+```{r, message=FALSE, warning=FALSE, output=FALSE}
+packages <- c("rvest", "httr", "purrr", "tidyverse", "gt")
+lapply(packages, library, character.only = TRUE)
+
+get_content <- function(url, type = "html") {
+  response <- GET(url)
+  if (http_status(response)$category != "Success") {
+    stop(paste("Failed to retrieve content from", url))
+  }
+  
+  if (type == "html") {
+    return(content(response, as = "text"))
+  } else if (type == "text") {
+    return(content(response, as = "text", encoding = "UTF-8"))
+  } else {
+    stop("Invalid type specified. Use 'html' or 'text'.")
+  }
+}
+
+extract_links <- function(url, html_content, regex_filter = NULL) {    
+  html_parsed <- read_html(html_content)
+  links <- html_parsed %>%
+    html_nodes("td > a") %>%
+    html_attr("href") %>%
+    .[!. %in% c("/data/climate/")]  # Exclude the specific link pattern
+  
+  full_links <- paste0(url, links)
+  if (!is.null(regex_filter)) {
+    full_links <- full_links[!grepl(regex_filter, full_links)]
+  }
+  return(full_links)
+}
+
+extract_value <- function(pattern, lines) {
+    #gets numbers out of the text file lines.
+    line <- lines[grep(pattern, lines)]
+    if (length(line) == 0) {
+      return(NA)
+    }
+    # Extract the numeric value using regex
+    value <- regmatches(line, regexpr("\\d+\\.?\\d*", line))
+    if (length(value) == 0) {
+      return(NA)
+    } else {
+      return(as.numeric(value[[1]]))
+    }
+}
+
+extract_precipitation <- function(text) {
+  # Finds the lines related to precipitation
+  lines <- unlist(strsplit(text, "\n"))
+  if (length(grep("PRECIPITATION", lines)) == 0) {
+    return(data.frame(
+      yesterday = NA,
+      month_to_date = NA
+    ))
+  }
+  
+  precip_lines <- lines[grep("PRECIPITATION", lines):length(lines)]
+  # Extract the values from the lines
+  yesterday     <- extract_value("YESTERDAY", precip_lines)
+  month_to_date <- extract_value("MONTH TO DATE", precip_lines)
+
+  data <- data.frame(
+    yesterday = yesterday,
+    month_to_date = month_to_date
+  )
+  return(data)
+}
+```
+\newpage
+### NOAA Parsing Application
+```{r, message=FALSE, warning=FALSE,}
+url <- "https://tgftp.nws.noaa.gov/data/climate/daily/"
+
+state_links <- extract_links(url, get_content(url))
+state_stations <- state_links %>%
+  map(get_content) %>%
+  map2(state_links, ~extract_links(url = .y, .x, regex_filter="data/climate/daily/$")) %>%
+  unlist()
+
+all_data <- state_stations %>%
+  map_df(function(link) {
+    text <- get_content(link, type = "text")
+    extract_precipitation(text) %>%
+      mutate(station_file = link)
+  })
+
+# present it! We'll limit it to 12 rows but they're all there!
+all_data %>%
+  slice_head(n = 12) %>%
+  gt() %>%
+  tab_header(
+    title = "Rainfall According to NOAA Station File"
+  )
+
+```
+\newpage
