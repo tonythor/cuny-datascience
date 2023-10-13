@@ -10,25 +10,32 @@ monofontoptions:
 ---
 
 # Data Set 1: Rain Rain NOAAway
+
+
 NOAA is one of the biggest publishers of global weather data. Most of the stuff the publish you have to FTP down, but I found this subset up on a web server. It's perfect for this project!
 
 ![](rain.jpg){width=70%}
 
 
-## NOAA Process Flow:
+## NOAA Data Process Flow:
 
 1. Go the main url, scrape all the US state links.
 2. For each state, scrape the cities. 
 3. For each city, download the city file.
 4. For each file, get just the precipitation data. 
-5. Finish with a three column dataset, yesterday, month_to_date, and station file.
+5. Finish by seeing who had the most rain yesterday and last month. 
 
 \newpage
 
-## NOAA Scraping and Parsing Functions
+## NOAA CODE
 ```{r, message=FALSE, warning=FALSE, output=FALSE}
+
 packages <- c("rvest", "httr", "purrr", "tidyverse", "gt")
 lapply(packages, library, character.only = TRUE)
+
+## ###########################################
+## All the functions for scraping and parsing 
+## ###########################################
 
 get_content <- function(url, type = "html") {
   response <- GET(url)
@@ -95,12 +102,12 @@ extract_precipitation <- function(text) {
   )
   return(data)
 }
-```
-\newpage
-### NOAA Parsing Application
-```{r, message=FALSE, warning=FALSE,}
-url <- "https://tgftp.nws.noaa.gov/data/climate/daily/"
 
+## ###########################################
+## NOAA Parsing Application
+## ###########################################
+
+url <- "https://tgftp.nws.noaa.gov/data/climate/daily/"
 state_links <- extract_links(url, get_content(url))
 state_stations <- state_links %>%
   map(get_content) %>%
@@ -112,15 +119,251 @@ all_data <- state_stations %>%
     text <- get_content(link, type = "text")
     extract_precipitation(text) %>%
       mutate(station_file = link)
-  })
+  }) %>%
+  mutate(
+    state_or_region = str_extract(station_file, "(?<=daily/)[^/]+"),
+    station = str_extract(station_file, "(?<=/)[^/]+(?=.txt)")
+  )%>%
+  select(-station_file) %>%
+  mutate(yesterday = ifelse(is.na(yesterday), 0, yesterday)) %>%
+  mutate(month_to_date = ifelse(is.na(month_to_date), 0, month_to_date))
+  
+findings_month <- all_data %>%
+  arrange(desc(month_to_date)) %>%
+  slice_head(n = 10) %>%
+  gt() %>%
+  tab_header(
+    title = "Highest Rainfall Last 30 Days"
+  )
 
-# present it! We'll limit it to 12 rows but they're all there!
-all_data %>%
+findings_yesterday <- all_data %>%
+  arrange(desc(yesterday)) %>%
+  slice_head(n = 10) %>%
+  gt() %>%
+  tab_header(
+    title = "Highest Rainfall Yesterday"
+  )
+
+
+```
+\newpage
+
+## NOAA Findings: Station File Precipitation Results
+
+Apparently Guam had the most rainfall over the month, and New Orleans had it for yesterday.! 
+
+```{r} 
+findings_month
+findings_yesterday
+```
+
+\newpage
+
+# Dataset 2: NSF, Sex, Programs and PHDs 
+
+nsf.gov is a great resource for for learning about PHD level degrees. Since I am considering one, and since most of my data scientist coworkers are female, I though I'd take a look at PHDs by program and sex.
+
+![](./sex.jpg)
+
+## NSF Data Process Flow:
+
+1. Download the Excel
+2. Flatten the data by extracting all hierarchy from within 
+3. Tidy by adding columns and pivoting wider with categories
+4. Tidy by combining years into the same column
+5. Visualize overall trends, and specific programs
+
+
+## NSF CODE
+```{r, message=FALSE, warning=FALSE, output=FALSE}
+packages <- c("httr", "readxl", "dplyr", "tidyr", "gt", "ggplot2")
+lapply(packages, library, character.only = TRUE)
+
+r1 <- "https://ncses.nsf.gov/pubs/nsf24300/assets/"
+r2 <- "data-tables/tables/nsf24300-tab001-005.xlsx"
+url <- paste(r1, r2, sep="")
+print(url)
+
+#Load the file into a dataframe
+temp_file <- tempfile(fileext = ".xlsx")
+download.file(url, temp_file, mode = "wb")
+sex <- read_excel(temp_file, sheet = 1) %>%
+  `colnames<-`(.[3, ]) %>%
+  slice(-1:-3)
+
+# Create the three dataframes 
+all_pos <- which(sex$`Field and sex` == "All doctorate recipientsa")
+male_pos <- which(sex$`Field and sex` == "Male")
+female_pos <- which(sex$`Field and sex` == "Female")
+all_df <- sex[2:(male_pos-1), ]
+male_df <- sex[male_pos+1:(female_pos-1), ]
+female_df <- sex[(female_pos +1):nrow(sex), ]
+all_df$Sex <- "Combined"
+male_df$Sex <- "Male"
+female_df$Sex <- "Female"
+
+## Tidy, remove extra columns, fill, make long, etc. 
+cats <- c(
+  "Life sciences",
+  "Mathematics and computer sciences", 
+  "Psychology and social sciences",
+  "Engineering",
+  "Education",
+  "Humanities and arts",
+  "Other")
+
+long_df <- bind_rows(all_df, male_df, female_df) %>%
+  mutate(DegreeType = if_else(`Field and sex` %in% cats, `Field and sex`, NA_character_)) %>%
+  fill(DegreeType) %>% 
+  filter(!(`Field and sex` %in% c(cats, "Female", "Male", "Combined"))  & !is.na(`Field and sex`)) %>%
+  gather(key = "Year", value = "Count", `2012`:`2022`) %>%
+  mutate(Year = as.numeric(Year)) %>%
+  filter(Sex != "Combined")
+
+##  Now prepare the two charts  #################
+line_graph <- long_df %>%
+  group_by(Year, DegreeType, Sex) %>%
+  summarise(TotalCount = sum(Count, na.rm = TRUE)) %>%
+  ungroup() %>%
+  ggplot(aes(x = Year, y = TotalCount, 
+        color = Sex, 
+        linetype = DegreeType, 
+        group = interaction(DegreeType, Sex))) +
+  geom_line(size = 1) +
+  labs(title = "PHD Degrees awarded by Type, Year and Sex",
+       x = "Year",
+       y = "Total Count of Degrees",
+       color = "Sex") +
+  scale_x_continuous(breaks = 2012:2022) +  
+  scale_color_brewer(palette = "Set1") +
+  theme(legend.position = "bottom",
+        legend.key.size = unit(1.5, "cm"),
+        legend.text = element_text(size = 6))
+
+all_programs <- long_df %>% 
+  filter(Year == 2022) %>%
+  group_by(`Field and sex`) %>%
+  mutate(Total = sum(Count)) %>%
+  ungroup() %>%
+  ggplot(aes(x = reorder(`Field and sex`, Total), y = Count, fill = Sex)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "Degree Counts by Field and Sex for 2022",
+       x = "Degree Field",
+       y = "Total Count of Degrees",
+       fill = "Sex") +
+  coord_flip() +
+  theme_minimal()
+
+
+```
+\newpage
+
+## PHD Findings 1
+
+Mostly, I expected much closer to a 50/50 split between men and women. That is definitely not the case. 
+
+```{r, fig.height=10, fig.width=10,message=FALSE, warning=FALSE }
+line_graph
+```
+`\newpage
+
+## PHD Findings 2
+
+I took one year and drilled into which programs specifically offered PHD's. I figured business would be at the top of the list, but it is not. 
+
+```{r, fig.height=10, fig.width=10, message=FALSE, warning=FALSE }
+all_programs
+```
+
+\newpage
+
+#  Data Set 3: Go to California yes, but not to the CA HHS 
+
+California HHS publishes a bunch of aggregated data about their hospitals. Of course they also publish raw data, but in the spirit of tidy data sets, let's work with this aggregated one. We'll do a plot to see if every office continues to grow year over year or not. 
+
+
+![](er.jpg)
+
+## HHS Data Process Flow
+
+1. Download the excel file from the web.
+2. Load the summary tab into a dataframe
+3. Tidy
+4. Show the adjusted table
+5. Plot/review year over year growth
+
+## CA HHS Code
+```{r, message=FALSE, warning=FALSE, output=FALSE}
+packages <- c("httr", "readxl", "gt", "tidyverse", "dplyr")
+lapply(packages, library, character.only = TRUE)
+
+# URL of the Excel file
+u1 <- "https://data.chhs.ca.gov/dataset/31ea2cfd-bc1c-4bde-9626-f41b97cc1b93/"
+u2 <- "resource/a05be197-1cea-4685-9dfd-0afc7712f81f/download/ed_ut2013_2017_20181030.xlsx"
+url <- paste(u1, u2, sep="")
+
+#download and read in the excel file.
+temp_file <- tempfile(fileext = ".xlsx")
+download.file(url, temp_file, mode = "wb")
+df <- read_excel(temp_file, sheet = 1)
+colnames(df) <- c("Service",
+                  "2013-24Hour","2013-OnCall",
+                  "2014-24Hour","2014-0nCall",
+                  "2015-24Hour","2015-OnCall",
+                  "2016-24Hour","2016-OnCall",
+                  "2017-24Hour","2017-OnCall")
+unlink(temp_file)
+
+#get just the bit we are looking for.
+start_row <- which(df$Service == "ED Services Available")
+end_row <- which(df$Service == "ED Patient Treatment Stations")
+
+reshaped_df <- df[start_row:(end_row-1),] %>% 
+  slice(-(1:2)) %>%
+  # now we tidy 
+  pivot_longer(
+    cols = -Service,
+    names_to = "temp",
+    values_to = "count"
+  ) %>%
+  separate(temp, into = c("Year", "ServiceType"), sep = "-") %>%
+  select(Service, Year, ServiceType, count) %>%
+  filter(!is.na(count)) %>%
+  mutate(
+    Year = as.numeric(Year),
+    count = as.numeric(count)
+  )
+
+## build the outputs
+myplot <- reshaped_df %>%
+  ggplot(aes(x = Year, y = count, color = Service, linetype = ServiceType, group = interaction(Service, ServiceType))) +
+  geom_line(size = 1) +
+  labs(
+    title = "Service Counts over Years",
+    x = "Year",
+    y = "Count",
+    color = "Service",
+    linetype = "Service Type"
+  ) +
+  scale_linetype_manual(values = c("24Hour" = "solid", "OnCall" = "dashed")) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+table <- reshaped_df %>%
   slice_head(n = 12) %>%
   gt() %>%
   tab_header(
-    title = "Rainfall According to NOAA Station File"
+    title = "After: California HHS Emergency Services Overview"
   )
 
 ```
 \newpage
+
+## CA HHS Findings
+It looks flat. There are not a lot of ups and downs in terms of emergency service. 
+
+```{r fig.width=10,}
+table
+myplot
+```
+
