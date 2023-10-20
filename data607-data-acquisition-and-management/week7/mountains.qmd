@@ -1,0 +1,35 @@
+---
+title: "Loading form JSON, HTML, XML"
+author: "By Tony Fraser"
+date: "30/Sept/2023"
+output:
+  pdf_document: default
+  latex_engine: xelatex
+editor_options: 
+  chunk_output_type: console
+---
+
+# Assignment
+Load data from within HTML, JSON and XML into data frames and compare. 
+
+\newpage
+## Load from HTML
+```{r}
+library(rvest)
+html_content <- readLines("./mountains.html", warn = FALSE)
+html_content <- paste(html_content, collapse = "\n")
+html_parsed <- read_html(html_content)
+
+# Extract data using CSS sel
+# ectors
+titles <- html_parsed %>% html_nodes(".book h2") %>% html_text()
+authors <- html_parsed %>% html_nodes(xpath = '//*[contains(text(),"Authors:")]') %>% html_text() %>% gsub("Authors: ", "", .)
+descriptions <- html_parsed %>% html_nodes(xpath = '//*[not(descendant::*[contains(text(),"Authors:") or contains(text(),"Year Published:")]) and parent::div[@class="book"]]') %>% html_text()
+years <- html_parsed %>% html_nodes(xpath = '//*[contains(text(),"Year Published:")]') %>% html_text() %>% gsub("Year Published: ", "", .)
+
+# Create a dataframe
+df <- data.frame(Title = titles, Authors = authors, Description = descriptions, Year_Published = years)
+
+print(df)
+```
+

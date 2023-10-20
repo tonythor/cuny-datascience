@@ -14,7 +14,7 @@ monofontoptions:
 
 NOAA is one of the biggest publishers of global weather data. Most of the stuff the publish you have to FTP down, but I found this subset up on a web server. It's perfect for this project!
 
-![](rain.jpg){width=70%}
+![](https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data607-data-acquisition-and-management/projects/project2-three-tidy-projects/rain.jpg){width=70%}
 
 
 ## NOAA Data Process Flow:
@@ -163,7 +163,8 @@ findings_yesterday
 
 nsf.gov is a great resource for for learning about PHD level degrees. Since I am considering one, and since most of my data scientist coworkers are female, I though I'd take a look at PHDs by program and sex.
 
-![](./sex.jpg)
+
+![](https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data607-data-acquisition-and-management/projects/project2-three-tidy-projects/sex.jpg)
 
 ## NSF Data Process Flow:
 
@@ -281,8 +282,7 @@ all_programs
 
 California HHS publishes a bunch of aggregated data about their hospitals. Of course they also publish raw data, but in the spirit of tidy data sets, let's work with this aggregated one. We'll do a plot to see if every office continues to grow year over year or not. 
 
-
-![](er.jpg)
+![](https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data607-data-acquisition-and-management/projects/project2-three-tidy-projects/er.jpg)
 
 ## HHS Data Process Flow
 

@@ -1,0 +1,38 @@
+<mountaineeringBooks>
+    <book>
+        <title>The Wildest Dream: The Biography of George Mallory</title>
+        <authors>
+            <author>Peter Gillman</author>
+            <author>Leni Gillman</author>
+        </authors>
+        <description>This biography delves into the life of George Mallory, the mountaineer who famously claimed to want to climb Mount Everest 'because it's there'. Mallory and his climbing partner, Andrew Irvine, disappeared during their 1924 expedition, leaving it a mystery as to whether they were the first to reach the summit.</description>
+        <year_published>2000</year_published>
+    </book>
+    <book>
+        <title>K2: Life and Death on the World's Most Dangerous Mountain</title>
+        <authors>
+            <author>Ed Viesturs</author>
+            <author>David Roberts</author>
+        </authors>
+        <description>This book provides a detailed account of the history and allure of K2, the world's second-highest mountain, which has a reputation as one of the most challenging and deadly. Viesturs, one of the world's premier high-altitude mountaineers, interweaves his own experiences on K2 with the stories of those who have faced the mountain's challenges.</description>
+        <year_published>2009</year_published>
+    </book>
+    <book>
+        <title>Last Hours on Everest: The Gripping Story of Mallory and Irvine’s Fatal Ascent</title>
+        <authors>
+            <author>Graham Hoyland</author>
+            <author>Conrad Anker</author>
+        </authors>
+        <description>Building on the story of Mallory and Irvine's ill-fated 1924 Everest expedition, this book dives deep into the last hours of the two climbers, piecing together the sequence of events from various evidence and testimonies. It's a deep exploration of what might have transpired on the upper reaches of the mountain.</description>
+        <year_published>2013</year_published>
+    </book>
+    <book>
+        <title>Deborah: A Wilderness Narrative</title>
+        <authors>
+            <author>David Roberts</author>
+            <author>Doug Scott</author>
+        </authors>
+        <description>This account details the gripping adventure of the first ascent of the East Face of Mount Deborah in Alaska. The duo faced daunting challenges, and the narrative presents not only the physical challenges of the climb but also the psychological and emotional hurdles they had to overcome.</description>
+        <year_published>1970</year_published>
+    </book>
+</mountaineeringBooks>
