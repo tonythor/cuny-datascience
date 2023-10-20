@@ -1,7 +1,7 @@
 ---
-title: "Loading form JSON, HTML, XML"
+title: "Loading from JSON, HTML, XML"
 author: "By Tony Fraser"
-date: "30/Sept/2023"
+date: "19/Oct/2023"
 output:
   pdf_document: default
   latex_engine: xelatex
@@ -14,11 +14,11 @@ base_path <- "https://raw.githubusercontent.com/tonythor/cuny-datascience/develo
 ```
 
 # Assignment
-Use R to load data about books from three different file types, HTML, JSON and XML. Then, compare. 
+Use R to load data about books from HTML, JSON and XML. Then compare. 
 
 _Explanation: each of these books has more than one author, and therefore this data is not inherently flat. This could be transformed and loaded into a tidy data frame, but there are other data types better suited for this structure. In R, this data is better represented by a list of lists, in python a dictionary, in scala a Map[String,Array] type, etc._
 
-_That said, to get a frame of reference before we load from JSON, HTML and XML, let's first look at what this data looks like if explicitly declared._ 
+_We are going to do this exercise in list of list format, but before we do that let's first look at what this data looks like if explicitly declared._ 
 
 ## Load from list of lists
 ```{r} 
@@ -33,6 +33,7 @@ books_list <- list(
         description = "This book ... allure of K2, the world's second-highest mountain...",
         year_published = 2009
   )
+  ## there are four total records in actual samples, this is just for a quick visual.
 )
 ## Access and test 
 # > books[[1]]$authors[[2]]
@@ -42,17 +43,19 @@ books_list <- list(
 \newpage
 ## Load from JSON
 
-Most all languages have a loader that goes straight from JSON into a dictionary type data set. In R, it's called `jsonlite`. We'll omit showing what hte JSON looks like as it's almost identical to the previous page. 
+Most all languages have a loader that goes straight from JSON into a dictionary type data set. In R, it's called `jsonlite`. 
 
-[The four mountaineering books as JSON](`r paste0(base_path, "week7/mountains.json")`)
+[Four mountaineering books as JSON](`r paste0(base_path, "week7/mountains.json")`)
 
 ```{r}
 json_path = paste(base_path, "week7/mountains.json", sep = "") 
 library(jsonlite)
 
-# books <- fromJSON(readLines(json_path, warn = FALSE)) <- not this!!  This goes straight into 
-# a dataframe. We don't want this additional processing, we want to keep it in native list[list] form.
+# not this!!  This goes straight into  a dataframe. We don't want this additional 
+# "simplify" processing, we want to keep it in list[list] form. 
+# books <- fromJSON(readLines(json_path, warn = FALSE)) 
 
+# use this one! 
 books_json <- fromJSON(readLines(json_path, warn = FALSE), simplifyDataFrame = FALSE)
 
 ## Access and test 
@@ -62,9 +65,9 @@ books_json <- fromJSON(readLines(json_path, warn = FALSE), simplifyDataFrame = F
 \newpage
 ## Load from XML
 
-[The four mountaineering books as XML](`r paste0(base_path, "week7/mountains.xml")`)
+[Four mountaineering books as XML](`r paste0(base_path, "week7/mountains.xml")`)
 
-There is an R xml parser called xml2. xml2 is an important package, but it's mostly because it is used as the engine that powers rvest. rvest is a critically important R package to be familiar with. It scrapes websites, extracts data from HTML DOM's, reads through CSS's, etc. And for the purpose of this paper, it also extracts data from both HTML and XML. 
+There is an R xml parser binary called xml2. xml2 is an important package, but it is important  mostly because it is used as the engine that powers the rvest package.  rvest is a critically important package that scrapes websites, extracts data from HTML DOM's and XPaths, reads through CSS's, etc. For the purpose of this lab, it also extracts from both HTML and XML. 
 
 ```{r}
 library(rvest)
@@ -86,19 +89,19 @@ books_xml <- lapply(1:length(titles), function(i) {
     title = titles[i],
     authors = authors[[i]],
     description = descriptions[i],
-    year_published = years[i]
+    year_published = as.integer(years[i])
   )
 })
-
+## Access and test 
 # > books_xml[[1]]$authors[[2]] 
 # [1] "Leni Gillman"
 ```
 
 \newpage
 ## Load from HTML
-R's Rvest is paraser that that can extract content out of HTML files. If you want to find all the links on a page, or extract all the books in a DOM, rvest is what you are looking for.  
+R's Rvest is paraser that that can extract content out of HTML files. If you want to find all the links on a page, or extract all the books in a DOM, or an XPath, rvest is what you are looking for.  
 
-[The four mountaineering books as HTML](`r paste0(base_path, "week7/mountains.html")`)
+[Four mountaineering books as HTML](`r paste0(base_path, "week7/mountains.html")`)
 
 ```{r}
 library(rvest)
@@ -120,12 +123,31 @@ books_html <- lapply(1:length(titles), function(i) {
     title = titles[i],
     authors = authors[[i]],
     description = descriptions[i],
-    year_published = years[i]
+    year_published = as.integer(years[i])
   )
 })
+
+## Access and test 
 # > books_html[[1]]$authors[[2]] 
 #[1] "Leni Gillman"
 
 ```
 
+\newpage
 
+## Are they identical? 
+They certainly weren't when I started this project, but they are now.
+```{r}
+identical_books_json_html <- identical(books_json, books_html)
+identical_books_html_xml <- identical(books_html, books_xml)
+identical_books_json_xml <- identical(books_json, books_xml)
+
+all_identical <- identical_books_json_html && identical_books_html_xml && identical_books_json_xml
+
+if (all_identical) {
+    print("Yes, they are identical.")
+} else {
+    print("No, they are not identical.")
+}
+
+```
