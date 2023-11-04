@@ -1,0 +1,410 @@
+---
+title: "Introduction to linear regression"
+format: 
+  pdf:
+    latex-engine: xelatex # or pdflatex or lualatex
+    keep-tex: true
+    preamble: |
+      \usepackage{xcolor}
+      \usepackage{framed}
+---
+
+\newcounter{exerciseNum}
+\setcounter{exerciseNum}{0}
+
+\newenvironment{exercise}[1][]
+{
+  \definecolor{myblue}{HTML}{1E2A38}
+  \colorlet{shadecolor}{myblue}
+  \begin{shaded}
+  \stepcounter{exerciseNum} % Increment the exercise counter
+  \ifx&#1& % Check if the optional argument is provided
+    \noindent\textcolor{white}{\textbf{Exercise \theexerciseNum}}
+  \else
+    \noindent\textcolor{white}{\textbf{Exercise \theexerciseNum: #1}}
+  \fi
+  \par\noindent\hrule\vspace{0.5\baselineskip}
+}
+{
+  \par\vspace{0.5\baselineskip}\noindent\hrule\end{shaded}
+}
+
+
+```{r message=FALSE, echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(eval = TRUE, message = FALSE, warning = FALSE)
+```
+
+The Human Freedom Index is a report that attempts to summarize the idea of "freedom" through a bunch of different variables for many countries around the globe. It serves as a rough objective measure for the relationships between the different types of freedom - whether it's political, religious, economical or personal freedom - and other social and economic circumstances. The Human Freedom Index is an annually co-published report by the Cato Institute, the Fraser Institute, and the Liberales Institut at the Friedrich Naumann Foundation for Freedom.
+
+In this lab, you'll be analyzing data from Human Freedom Index reports from 2008-2016. Your aim will be to summarize a few of the relationships within the data both graphically and numerically in order to find which variables can help tell a story about freedom.
+
+## Getting Started
+
+### Load packages and Data
+
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(openintro)
+library(gt)
+library(magrittr)
+data('hfi', package='openintro')
+```
+
+\newpage
+
+### The data
+
+The data we're working with is in the openintro package and it's called `hfi`, short for Human Freedom Index.
+
+\begin{exercise}[Dimensions]
+\textcolor{white}{What are the dimensions of the dataset?}
+\end{exercise}
+
+_There are a lot. Seems like an odd question that will throw out a lot of output to the screen but here we go. Hfi has the following 123 dimensions._
+
+```{r colnames}
+colnames(hfi)
+```
+\newpage
+
+\begin{exercise}[pf\_score to pf\_expression\_control]
+\textcolor{white}{What type of plot would you use to display the relationship between the personal freedom score, \textit{\textbf{pf\_score}}, and one of the other numerical variables? Plot this relationship using the variable \textit{\textbf{pf\_expression\_control}} as the predictor. Does the relationship look linear? If you knew a country's \textit{\textbf{pf\_expression\_control}}, or its score out of 10, with 0 being the most, of political pressures and controls on media content, would you be comfortable using a linear model to predict the personal freedom score?}
+\end{exercise}
+
+
+```{r}
+ggplot(hfi, aes(x = pf_expression_control, y = pf_score)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  theme_minimal() +
+  labs(title = "pf_score vs. pf_expression_control",
+       x = "pf_expression_control",
+       y = "pf_score") +
+  theme_light()
+```
+
+
+_It looks pretty linear to me, so yes I'd say we can predict. The problem is the variance. With a scale of 10 and a standard deviation of 2, that's not very accurate_. 
+\newpage
+
+If the relationship looks linear, we can quantify the strength of the relationship with the correlation coefficient.
+
+```{r cor}
+hfi %>%
+  summarise(cor(pf_expression_control, pf_score, use = "complete.obs"))
+```
+
+Here, we set the `use` argument to "complete.obs" since there are some observations of NA.
+
+## Sum of squared residuals
+
+<div id="boxedtext">
+In this section, you will use an interactive function to investigate what we mean by "sum of squared residuals". You will need to run this function in your console, not in your markdown document. Running the function also requires that the `hfi` dataset is loaded in your environment.
+</div>
+
+Think back to the way that we described the distribution of a single variable. Recall that we discussed characteristics such as center, spread, and shape. It's also useful to be able to describe the relationship of two numerical variables, such as `pf_expression_control` and `pf_score` above.
+
+\begin{exercise}[Describe the relationship]
+\textcolor{white}{ Looking at your plot from the previous exercise, describe the relationship between these two variables. Make sure to discuss the form, direction, and strength of the relationship as well as any unusual observations.}
+\end{exercise}
+
+_Those two variables have an high positive linear correlation to each other. And yes you can see all that in the chart, but the more important indicator is the correlation of .79. That's high, really high._  
+
+
+Just as you've used the mean and standard deviation to summarize a single variable, you can summarize the relationship between these two variables by finding the line that best follows their association. Use the following interactive function to select the line that you think does the best job of going through the cloud of points.
+
+```{r plotss-expression-score, eval=FALSE}
+# This will only work interactively (i.e. will not show in the knitted document)
+hfi <- hfi %>% filter(complete.cases(pf_expression_control, pf_score))
+DATA606::plot_ss(x = hfi$pf_expression_control, y = hfi$pf_score)
+```
+
+After running this command, you'll be prompted to click two points on the plot to define a line. Once you've done that, the line you specified will be shown in black and the residuals in blue. Note that there are 30 residuals, one for each of the 30 observations. Recall that the residuals are the difference between the observed values and the values predicted by the line:
+
+$$
+  e_i = y_i - \hat{y}_i
+$$
+
+The most common way to do linear regression is to select the line that minimizes the sum of squared residuals. To visualize the squared residuals, you can rerun the plot command and add the argument `showSquares = TRUE`.
+
+```{r plotss-expression-score-squares, eval=FALSE}
+DATA606::plot_ss(x = hfi$pf_expression_control, y = hfi$pf_score, showSquares = TRUE)
+```
+
+Note that the output from the `plot_ss` function provides you with the slope and intercept of your line as well as the sum of squares.
+
+\begin{exercise}[Choose a line and describe]
+\textcolor{white}{Using \textit{\textbf{plot\_ss}} choose a line that does a good job of minimizing the sum of squares. Run the function several times. What was the smallest sum of squares that you got? How does it compare to your neighbors?}
+\end{exercise}
+
+_954 was my lowest guess after trying it a dozens times, but I didn't ask any of my neighbors. And WOW did I get close with my eyeball guesses!!_ 
+
+```{r}
+model <- lm(pf_score ~ pf_expression_control, data=hfi)
+sum(residuals(model)^2)  # [1] 952.1532
+# summary(model)
+```
+
+## The linear model
+
+It is rather cumbersome to try to get the correct least squares line, i.e. the line that minimizes the sum of squared residuals, through trial and error. Instead, you can use the `lm` function in R to fit the linear model (a.k.a. regression line).
+
+
+```{r m1}
+m1 <- lm(pf_score ~ pf_expression_control, data = hfi)
+```
+_well how about that?!_ 
+
+The first argument in the function `lm` is a formula that takes the form `y ~ x`. Here it can be read that we want to make a linear model of `pf_score` as a function of `pf_expression_control`. The second argument specifies that R should look in the `hfi` data frame to find the two variables.
+
+The output of `lm` is an object that contains all of the information we need about the linear model that was just fit. We can access this information using the summary function.
+
+```{r summary-m1}
+summary(m1)
+```
+
+Let's consider this output piece by piece. First, the formula used to describe the model is shown at the top. After the formula you find the five-number summary of the residuals. The "Coefficients" table shown next is key; its first column displays the linear model's y-intercept and the coefficient of `pf_expression_control`. With this table, we can write down the least squares regression line for the linear model:
+
+$$
+  \hat{y} = 4.61707 + 0.49143 \times pf\_expression\_control
+$$
+
+One last piece of information we will discuss from the summary output is the Multiple R-squared, or more simply, $R^2$. The $R^2$ value represents the proportion of variability in the response variable that is explained by the explanatory variable. For this model, 63.42% of the variability in runs is explained by at-bats.
+
+\begin{exercise}[pf\_expression\_control and hf\_score]
+\textcolor{white}{Fit a new model that uses \textit{\textbf{pf\_expression\_control}} to predict \textit{\textbf{hf\_score}}, or the total human freedom score. Using the estimates from the R output, write the equation of the regression line. What does the slope tell us in the  context of the relationship between human freedom and the amount of political pressure on media content?}
+\end{exercise}
+
+_There is a positive correlation. Looking at the correlation, summary, lm output, and scope and intercept, I bet the plot looks similar to pf\_expresison\_control and pf\_score._
+
+
+```{r}
+# hfi %>%  summarise(cor(pf_expression_control, hf_score, use = "complete.obs"))
+# 0.760
+
+# lm(hf_score ~ pf_expression_control, data = hfi)
+# Coefficients:
+#           (Intercept)  pf_expression_control  
+#                5.1537                 0.3499  
+
+```
+$$
+  \hat{y} = 5.1537 +0.3499  \times pf\_expression\_control
+$$
+
+
+
+## Prediction and prediction errors
+
+Let's create a scatterplot with the least squares line for `m1` laid on top.
+
+```{r reg-with-line}
+ggplot(data = hfi, aes(x = pf_expression_control, y = pf_score)) +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE)
+```
+
+Here, we are literally adding a layer on top of our plot. `geom_smooth` creates the line by fitting a linear model. It can also show us the standard error `se` associated with our line, but we'll suppress that for now.
+
+This line can be used to predict $y$ at any value of $x$. When predictions are made for values of $x$ that are beyond the range of the observed data, it is referred to as *extrapolation* and is not usually recommended. However, predictions made within the range of the data are more reliable. They're also used to compute the residuals.
+
+
+\begin{exercise}[ What are regression lines are for? ]
+\textcolor{white}{If someone saw the least squares regression line and not the actual data, how would they predict a country's personal freedom school for one with a 6.7 rating for \textit{\textbf{pf\_expression\_control}}? Is this an overestimate or an underestimate, and by how much? In other words, what is the residual for this prediction?}
+\end{exercise} 
+
+_If they only saw the line of y = 0.49143 \times pf\_expression\_control +  4.61707, they would solve for y and there would be no residual. That's the point of regression line -- you use it to predict._  
+
+
+## Model diagnostics
+
+To assess whether the linear model is reliable, we need to check for (1) linearity, (2) nearly normal residuals, and (3) constant variability.
+
+**Linearity**: You already checked if the relationship between `pf_score` and `pf_expression_control' is linear using a scatterplot. We should also verify this condition with a plot of the residuals vs. fitted (predicted) values.
+
+```{r residuals}
+# ggplot(data = m1, aes(x = .fitted, y = .resid)) +
+#   geom_point() +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   xlab("Fitted values") +
+#   ylab("Residuals")
+
+# It is breaking my brain that that above code even works so I rewrote it.
+# It's definitely not a method according to the str() function.
+# If the m1 object is going to have a .resid variable, it should show up when
+# you run str(m1)
+
+
+ggplot(data = m1, aes(x = m1$fitted, y = m1$residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+```
+
+Notice here that `m1` can also serve as a data set because stored within it are the fitted values ($\hat{y}$) and the residuals. Also note that we're getting fancy with the code here. After creating the scatterplot on the first layer (first line of code), we overlay a horizontal dashed line at $y = 0$ (to help us check whether residuals are distributed around 0), and we also reanme the axis labels to be more informative.
+
+
+\begin{exercise}[ Residuals versus fits ]
+\textcolor{white}{Is there any apparent pattern in the residuals plot? What does this indicate about the linearity of the relationship between the two variables?}
+\end{exercise} 
+
+
+_It looks like all those dots are sort of evenly distributed above and below the zero line. That's what I would expect, to minimize or make that line as close to zero residuals (error) that's what we are looking for._
+
+_PS I made a comment in the code for making this chart as well._
+
+
+**Nearly normal residuals**: To check this condition, we can look at a histogram
+
+```{r hist-res}
+ggplot(data = m1, aes(x = m1$residuals)) +
+  geom_histogram(binwidth = .25) +
+  xlab("Residuals")
+```
+
+or a normal probability plot of the residuals.
+
+```{r qq-res}
+ggplot(data = m1, aes(sample = m1$residuals)) +
+  stat_qq()
+```
+
+Note that the syntax for making a normal probability plot is a bit different than what you're used to seeing: we set `sample` equal to the residuals instead of `x`, and we set a statistical method `qq`, which stands for "quantile-quantile", another name commonly used for normal probability plots.
+
+\begin{exercise}[ Nearly normal residuals ]
+\textcolor{white}{Based on the histogram and the normal probability plot, does the nearly normal residuals condition appear to be met?}
+\end{exercise} 
+
+_Both conditions are met. The histogram centers around zero with not so much outlier data. This a fairly normal probability plot. And in the QQ plot, the line is pretty straight. Deviations from the line would indicate non-normality, but there really aren't any._
+
+
+* * *
+
+## More Practice
+
+\begin{exercise}[ Pick another pair ]
+\textcolor{white}{Choose another freedom variable and a variable you think would strongly correlate with it.. Produce a scatterplot of the two variables and fit a linear model. At a glance, does there seem to be a linear relationship?}
+\end{exercise} 
+
+_Hmm, my vote is let's find the most correlated of them all and see what almost perfect correlation looks like. Objective, diag the list of correlation variables, pick the top one, and then look at that._
+
+```{r}
+
+
+library(dplyr)
+
+hfi_numeric <- hfi %>% select(-c("ISO_code", "countries", "region"))      
+## If null, replace with mean.                                         
+hfi_numeric_imputed <- hfi_numeric %>% mutate(across(everything(), ~ifelse(is.na(.), mean(., na.rm = TRUE), .))) 
+cor_matrix <- cor(hfi_numeric_imputed, use = "complete.obs") 
+
+# Exclude the diagonal (set it to 0)
+diag(cor_matrix) <- 0
+
+# Flatten the matrix and sort by absolute value
+cor_values <- as.data.frame(as.table(cor_matrix))
+cor_values <- cor_values %>% arrange(desc(abs(Freq))) %>% head(10)
+
+# Print the pairs and their correlation values using correct column names
+for (i in 1:nrow(cor_values)) {
+  cat(colnames(cor_matrix)[as.numeric(cor_values$Var1[i])], "&",
+      colnames(cor_matrix)[as.numeric(cor_values$Var2[i])], ":",
+      cor_values$Freq[i], "\n")
+}
+# -> pf_rank & pf_score : -0.9862123 
+
+ggplot(hfi, aes(x = pf_rank, y = pf_score)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  theme_minimal() +
+  labs(title = "pf_score vs. pf_rank",
+       x = "pf_rank",
+       y = "pf_score") +
+  theme_light()
+
+lm(pf_score ~ pf_rank, data = hfi)
+
+
+```
+
+_Wow. Of course this makes sense, but there is a very clear relationship here. If you have a higher rank, you have a lower pf_score. I wish there was more of an explanation of what these scores represented._
+
+
+$$
+  \hat{y} =(-0.03048 \times pf\_rank) + 9.55466
+$$
+
+\newpage
+
+\begin{exercise}[ Compare ]
+\textcolor{white}{How does this relationship compare to the relationship between pf\_expression\_control and pf\_score? Use the R squared values from the two model summaries to compare. Does your independent variable seem to predict your dependent one better? Why or why not?}
+\end{exercise} 
+
+
+```{r}
+print(sprintf("f_score ~ pf_expression_control  %s | pf_score ~ pf_rank %s", 
+    round(sum(residuals(lm(pf_score ~ pf_expression_control, data=hfi))^2),1),
+    round(sum(residuals(lm(pf_score ~ pf_rank, data=hfi))^2),1)))
+```
+
+
+_It's as expected. Of course one predicts the other, and the sum of square is is way lower. There's a much better fit line._
+
+\begin{exercise}[ What surpised you?  ]
+\textcolor{white}{ What's one freedom relationship you were most surprised about and why? Display the model diagnostics for the regression model analyzing this relationship.}
+\end{exercise} 
+
+
+_I think the only to have an educated answer for this is to start with the stuff that does not correlate well, and then think about it. That said, let's find the least correlated things, go look up the columns and then pick and talk about the one that makes the least sense._
+
+
+```{r}
+
+
+hfi_numeric <- hfi %>% select(-c("ISO_code", "countries", "region"))      
+## If null, replace with mean.                                         
+hfi_numeric_imputed <- hfi_numeric %>% mutate(across(everything(), ~ifelse(is.na(.), mean(., na.rm = TRUE), .))) 
+cor_matrix <- cor(hfi_numeric_imputed, use = "complete.obs") 
+
+# Exclude the diagonal (set it to 0)
+diag(cor_matrix) <- 0
+
+# Flatten the matrix and sort by absolute value
+cor_values <- as.data.frame(as.table(cor_matrix))
+cor_values <- cor_values %>% arrange(desc(abs(Freq))) %>% head(500)
+
+
+
+cor_pairs_df <- cor_values %>%
+  transmute(
+    Pair = paste(colnames(cor_matrix)[as.numeric(Var1)], "&",
+                 colnames(cor_matrix)[as.numeric(Var2)]),
+    Correlation = Freq
+  )
+
+# > glimpse(cor_pairs_df)
+# Rows: 500
+# Columns: 2
+# $ Pair        <chr> "pf_rank & pf_score", "pf_score & pf_rank", "hf_rank & hf_…
+# $ Correlation <dbl> -0.9862123, -0.9862123, -0.9843632, -0.9843632, 0.9641413,…
+
+# It was trial and error to find the lowest correlation numbers, but here they are, about the 20 least correlated ones.
+cor_pairs_df %>% filter(Correlation < 0.675 & Correlation > -0.675)
+# Now let's go look them up.
+```
+
+_pf\_rank ~ pf\_association\_assembly  -0.6710553 stands out. Freedom of assembly and personal freedoms are not more highly correlated? let's do a quick scatterplot and see, but we can see from being oen of the lowest correlated numbers that it's going to be all over the place._
+
+```{r}
+ggplot(hfi, aes(x = pf_association_assembly, y = pf_score)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  theme_minimal() +
+  labs(title = "pf_association_assembly vs. pf_rank",
+       x = "pf_association_assembly",
+       y = "pf_score") +
+  theme_light()
+```
+
+* * *
