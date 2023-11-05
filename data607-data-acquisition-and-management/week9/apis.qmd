@@ -1,0 +1,88 @@
+---
+title: "Querying the New York Times API"
+author: "By Tony Fraser"
+date: "November 5, 2023"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+
+## Assignment
+__Your task is to choose one of the New York Times APIs, construct an interface in R to read in the JSON data, and transform it into an R DataFrame.__
+
+  
+## About this code
+
+I chose to integrate with the article search api. If you send a query with a search term, it sends you a json object with a bunch of metadata about each matching article. Dat includes author, headline, date, description, etc.. 
+
+This code either does or does not do the following: 
+
+- It does not do any analytics on return results. The assignment does not ask for that.
+- It does properly handle errors for when/if the rest api returns a server 500.
+- It does load the api key from a text file that is not checked into Github.
+- It does create format and create a link of where the article is, but reading requires an NYT subscription. 
+- If does not paginate. There may be be 1,000 results but this code shows the first 10 returned.
+- It can persist raw results as a json file, which is very useful for further integration.
+
+## Query the API
+```{r message=FALSE, warning=FALSE, output=FALSE}
+####################
+#Set variables
+search_term <- "swing dancing"
+headline_length <- 70
+####################
+packages <- c("httr", "jsonlite", "dplyr", "gt", "lubridate", "stringr")
+lapply(packages, library, character.only = TRUE)
+
+get_api_key <- function(api_key_path) {
+  if (!file.exists(api_key_path)) {
+    stop("API key file does not exist:", api_key_path)
+  }
+  return(readLines(api_key_path, warn = FALSE, n = 1))
+}
+
+search_nyt <- function(query, api_key, persist_results = FALSE) {
+  base_url <- "https://api.nytimes.com/svc/search/v2/articlesearch.json"
+  params <- list('q' = query, 'api-key' = api_key)
+  response <- GET(url = base_url, query = params)
+  if (status_code(response) == 200) {
+    content <- content(response, type = "text", encoding = "UTF-8")
+    json_file_path <- paste0("nogit_", query, ".json")
+    if(persist_results) writeLines(content, json_file_path)
+    print(paste("JSON content saved to", json_file_path))
+    return(fromJSON(content))
+  } else { stop(paste("Request failed with HTTP StatusCode:", status_code(response)))}
+}
+api_key = get_api_key("nogit_nytimes_api_key.txt") 
+
+results_df <- search_nyt(query = search_term, api_key = api_key, persist_results = FALSE) %>%
+  { flatten(. $response$docs) } %>%
+  as.data.frame() %>%
+  mutate(pub_date = ymd_hms(pub_date),
+         pub_date_str = format(pub_date, "%Y-%m-%d")) %>%
+  arrange(desc(pub_date)) %>%
+  rowwise() %>%
+  mutate(link = sprintf('[view](%s)', web_url)) %>%
+  mutate(`headline.main` = 
+      if_else(str_length(`headline.main`) > headline_length ,
+              str_sub(`headline.main`, 1,  headline_length - 3) %>% str_c("..."),
+               `headline.main`)) %>%
+  select(c(`headline.main`, `byline.original`, pub_date_str, link)) 
+```
+\newpage 
+
+## Display the results
+
+```{r message=FALSE}
+results_df %>% 
+  gt() %>%
+  fmt_markdown(
+    columns = c(link)
+   ) %>%
+  cols_width(
+    headline.main ~ px(400), 
+    byline.original ~ px(250)
+  )
+```
