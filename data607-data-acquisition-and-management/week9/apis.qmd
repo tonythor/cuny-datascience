@@ -28,11 +28,12 @@ This code either does or does not do the following:
 
 ## Query the API
 ```{r message=FALSE, warning=FALSE, output=FALSE}
-####################
-#Set variables
+###############################
+# Set variables
 search_term <- "swing dancing"
 headline_length <- 70
-####################
+###############################
+
 packages <- c("httr", "jsonlite", "dplyr", "gt", "lubridate", "stringr")
 lapply(packages, library, character.only = TRUE)
 
