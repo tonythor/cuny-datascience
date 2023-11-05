@@ -70,7 +70,7 @@ results_df <- search_nyt(query = search_term,
          pub_date_str = format(pub_date, "%Y-%m-%d")) %>%
   arrange(desc(pub_date)) %>%
   rowwise() %>%
-  mutate(link = sprintf('[view](%s)', web_url)) %>%
+  mutate(link = sprintf('<a href=%s target=_blank>view</a>', web_url)) %>%
   mutate(`headline.main` = 
       if_else(str_length(`headline.main`) > headline_length ,
               str_sub(`headline.main`, 1,  headline_length - 3) %>% str_c("..."),
