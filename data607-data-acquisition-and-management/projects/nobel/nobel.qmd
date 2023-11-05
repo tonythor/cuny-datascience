@@ -16,6 +16,8 @@ library(jsonlite)
 library(dplyr)
 library(uuid)
 library(tidyr)
+library(ggplot2)
+
 
 get_data <- function(suffix, type = "json", persist = FALSE) {
   base_url <- "http://api.nobelprize.org/v1/"
@@ -43,9 +45,27 @@ get_data <- function(suffix, type = "json", persist = FALSE) {
 
 ```{r}
 countries <- get_data(suffix = "country.csv", type = "csv", persist = FALSE)
-people <-  get_data(suffix = "prize.json", type = "json", persist = FALSE) %>%
+people <-  get_data(suffix = "prize.json", type = "json", persist = TRUE) %>%
   { flatten(. $prizes) } %>%
   unnest(laureates)
-  
+
 ```
+
+### Question 1
+How many people are submitted for category? I'd like to see a simple groupby/count. 
+
+```{r}
+people %>%
+  group_by(category) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  ggplot(aes(x = reorder(category, count), y = count)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(x = "Count of People", y = "Category", title = "Count of People by Nobel Category") +
+  theme_minimal()
+
+```
+
+
 
