@@ -84,5 +84,11 @@ results_df %>%
   cols_width(
     headline.main ~ px(400), 
     byline.original ~ px(250)
+  ) %>%
+    cols_label(
+    headline.main = "Headline",
+    byline.original = "Byline",
+    pub_date_str = "Date",
+    link = "Link"
   )
 ```
