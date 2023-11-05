@@ -53,11 +53,16 @@ search_nyt <- function(query, api_key, persist_results = FALSE) {
     if(persist_results) writeLines(content, json_file_path)
     print(paste("JSON content saved to", json_file_path))
     return(fromJSON(content))
-  } else { stop(paste("Request failed with HTTP StatusCode:", status_code(response)))}
+  } else { 
+    stop(
+      paste("Request failed with HTTP StatusCode:", status_code(response)))
+  }
 }
 api_key = get_api_key("nogit_nytimes_api_key.txt") 
 
-results_df <- search_nyt(query = search_term, api_key = api_key, persist_results = FALSE) %>%
+results_df <- search_nyt(query = search_term, 
+                         api_key = api_key, 
+                         persist_results = FALSE) %>%
   { flatten(. $response$docs) } %>%
   as.data.frame() %>%
   mutate(pub_date = ymd_hms(pub_date),
@@ -71,7 +76,6 @@ results_df <- search_nyt(query = search_term, api_key = api_key, persist_results
                `headline.main`)) %>%
   select(c(`headline.main`, `byline.original`, pub_date_str, link)) 
 ```
-\newpage 
 
 ## Display the results
 
