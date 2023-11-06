@@ -2,14 +2,18 @@
 ---
 title: "Looking at Nobel Data"
 author: "By Tony Fraser"
-date: "November 5 2023"
+date: "November 5, 2023"
 format:
-  pdf: 
-    latex-engine: xelatex
-editor_options: 
-  chunk_output_type: console
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
 ---
 
+## Assignment
+__Working with the two json files available through the API at nobelprize.org, ask and answer four interesting questions, like which country lost the most nobel laureates, like who were born in one country but received their prize in a different country.__
+
+## Load and prepare data
 ```{r messages=FALSE, warning=FALSE, output=FALSE}
 library(httr)
 library(jsonlite)
@@ -27,8 +31,7 @@ get_data <- function(suffix, type = "json", persist = FALSE) {
   if (status_code(response) == 200) {
     content_data <- content(response, "text", encoding = "UTF-8")
     if (persist) {
-      file_name <- paste0("nogit_", UUIDgenerate(), "_", suffix, 
-            ifelse(type == "json", ".json", ".csv"))
+      file_name <- paste0("nogit_", UUIDgenerate(), "_", suffix)
       print(sprintf("FileName %s", file_name))
       write(content_data, file_name)
     }
@@ -40,32 +43,109 @@ get_data <- function(suffix, type = "json", persist = FALSE) {
     stop("Failed to retrieve data: ", status_code(response))
   }
 }
+
+persist = FALSE
+
+
+prizes <-  get_data(suffix = "prize.json", type = "json", persist = persist) %>%
+ { flatten(. $prizes) } %>% unnest(laureates)
+
+laureates <- get_data(suffix = "laureate.json", type = "json", persist = persist) %>%
+{ flatten(. $laureates)} %>% unnest(prizes)
+
+# Ended up not using these in final product, but it works.
+# countries <- get_data(suffix = "country.csv", type = "csv", persist = persist)
+
 ``` 
 
+## Question 1 : How many?
+How many different nobel prizes have been awarded, by type? 
 
-```{r}
-countries <- get_data(suffix = "country.csv", type = "csv", persist = FALSE)
-people <-  get_data(suffix = "prize.json", type = "json", persist = TRUE) %>%
-  { flatten(. $prizes) } %>%
-  unnest(laureates)
-
-```
-
-### Question 1
-How many people are submitted for category? I'd like to see a simple groupby/count. 
-
-```{r}
-people %>%
+```{r byCat, messages=FALSE, warning=FALSE,}
+prizes %>%
   group_by(category) %>%
   summarise(count = n()) %>%
   arrange(desc(count)) %>%
   ggplot(aes(x = reorder(category, count), y = count)) +
   geom_bar(stat = "identity") +
   coord_flip() +
-  labs(x = "Count of People", y = "Category", title = "Count of People by Nobel Category") +
+  labs(x = "Count of people", y = "Category", title = "Count of people by Nobel category") +
   theme_minimal()
 
 ```
 
 
+## Question 2 : Which countries?
+Were do these Nobel prize winners come from? 
 
+```{r, byCountry, fig.width=10, fig.height=10, messages=FALSE, warning=FALSE}
+laureates %>%
+  filter(!is.na(bornCountry)) %>%
+  group_by(bornCountry, category) %>% 
+  summarize(count = n(), .groups = "drop") %>%
+  mutate(country_group = ifelse(count <=4, "FourOrLessAwards", as.character(bornCountry))) %>%
+  group_by(country_group, category) %>% 
+  summarize(count = sum(count), .groups = "drop") %>%
+  ungroup() %>%
+  group_by(country_group) %>%  
+  mutate(total_count = sum(count)) %>% 
+  ungroup() %>%
+  arrange(desc(total_count)) %>%
+  mutate(country_group = forcats::fct_inorder(country_group)) %>%
+  ggplot(aes(x = country_group, y = count, fill = category)) +
+  geom_bar(stat = "identity", position="stack") +
+  coord_flip() + 
+  labs(x = "Country", y = "Count of Nobel laureates", title = "Nobel laureates by country and category") +
+  theme_minimal()
+```
+
+## Question 3: Which cities? 
+How about by city? Are there any major city groupings in this data? I assume the big cites are New York and London. _After building this chart, I am surprized at how few come from the west coast of the US._
+
+```{r, byCity, fig.width=10, fig.height=12, messages=FALSE, warning=FALSE}
+laureates %>%
+  filter(!is.na(bornCity) & !is.na(bornCountryCode)) %>%
+  group_by(bornCity, bornCountryCode, category) %>%
+  summarize(count = n(), .groups = "drop") %>%
+  mutate(city_country = paste(bornCity, bornCountryCode, sep = ", ")) %>%
+  group_by(city_country) %>%
+  mutate(total_count = sum(count)) %>%
+  ungroup() %>%
+  filter(total_count > 2) %>% 
+  ggplot(aes(x = reorder(city_country, -total_count), y = count, fill = category)) +
+    geom_bar(stat = "identity") +
+    coord_flip() +
+    labs(x = "City", y = "Count of Nobel laureates", fill = "Category") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1),
+          plot.title = element_text(hjust = 0.5)) +
+    ggtitle("Nobel laureates by city and category") 
+
+```
+
+## Question 4 : Over time
+Over time, has there been much of a shake up on who gets these awards? When did the US start winning all the prizes? Was it after WWII?
+
+```{r}
+track_countries <- c("USA", "United Kingdom", "Germany", "France", "Sweden", "Japan")
+
+laureates %>%
+  filter(bornCountry %in% track_countries, !is.na(bornCountry), !is.na(year)) %>%
+  mutate(year = as.numeric(year)) %>%
+  group_by(bornCountry, year_bin = cut(year, 
+                                       breaks=seq(min(year, na.rm = TRUE), 
+                                                  max(year, na.rm = TRUE), by=5), 
+                                       include.lowest = TRUE, 
+                                       right = FALSE)) %>%
+  summarize(count = n(), .groups = 'drop') %>%
+  ungroup() %>%
+  filter(!is.na(year_bin)) %>%
+  ggplot(aes(x = as.character(year_bin), y = count, color = bornCountry, group = bornCountry)) +
+    geom_line(linewidth=1.4) +
+    theme_minimal() +
+    labs(x = "Year (binned in 5-year intervals)", 
+         y = "Number of Nobel prizes", 
+         title = "Nobel prizes by country over time") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    scale_x_discrete(guide = guide_axis(n.dodge=2))
+```
