@@ -1,0 +1,50 @@
+---
+title: "Week 10 NLP"
+author: "By Tony Fraser"
+date: "November 9, 2023"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+
+```{r}
+library(readr)
+library(tidytext)
+library(wordcloud)
+data(stop_words)
+library(tidyverse)
+
+lyrics <- read_csv("../data/taylor_swift_lyrics.csv")  %>%
+  unnest_tokens(word, lyric)
+
+glimpse(lyrics)
+
+
+```
+
+
+## A quick sentiment analysis of moby dick
+
+```{r}
+# lyrics %>% 
+#   select(word) %>%
+#   anti_join(stop_words, by = "word") %>%
+#   count(word) %>%
+#   filter(n >= 50) %>%
+#   with(wordcloud(word, n))
+
+lyrics %>% 
+  select(word) %>%
+  anti_join(stop_words, by = "word") %>%
+  count(word) %>%
+  filter(n >= 50) %>%
+  with(wordcloud(words = word, freq = n, min.freq = 1, random.order = FALSE, rot.per = 0.35, colors = brewer.pal(8, "Dark2")))
+
+#  with(wordcloud(word, n max.words = 100))
+
+
+
+
+```
