@@ -1,5 +1,5 @@
 ---
-title: "Tidytext NLP with Taylor Swift Lyrics"
+title: "Tidytext NLP using Taylor Swift Lyrics"
 author: "By Tony Fraser"
 date: "November 11, 2023"
 format:
@@ -67,7 +67,7 @@ song_lyrics %>%
        y = "Percentage",
        fill = "Sentiment")
 ```
-As the code says, I took the NRC sentiment lexicon[^1], inner joined it with non stop-word lyrics, and then summed the nrc sentiment score per album. Given they are roughly so equal, the question this leaves me with is, is this about the right mix of emotions for a blockbuster pop album? 
+As the code says, I took the NRC sentiment lexicon[^1], inner joined it with non stop-word lyrics, and then summed the NRC sentiment score per album. Given they are roughly so equal, the question this leaves me with is, is this about the right mix of emotions for a blockbuster pop album? 
 
 ## The most positive and negatives songs
 ```{r }
