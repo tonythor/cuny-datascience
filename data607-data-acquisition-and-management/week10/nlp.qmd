@@ -1,33 +1,31 @@
 ---
-title: "Week 10 NLP"
+title: "Tidytext NLP with Taylor Swift Lyrics"
 author: "By Tony Fraser"
-date: "November 9, 2023"
+date: "November 11, 2023"
 format:
   html:
     theme: cosmo
     toc: true
     number_sections: true
 ---
-# Intro to NLP using Taylor Swift Lyrics
 
-```{r}
+## Loading data
+I started this project with this [Taylor Swift lyrics dataset](https://www.kaggle.com/datasets/PromptCloudHQ/taylor-swift-song-lyrics-from-all-the-albums/) up on kaggle. It was a little out of date and my girlfriend is a Swiftie, so I had to spend several hours adding our albums worth of song lyrics. 
+
+```{r message=FALSE, warning=FALSE, output=FALSE}
 library(readr)
 library(tidytext)
 library(wordcloud)
 data(stop_words)
 library(tidyverse)
 
-song_lyrics <- read_csv("https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data/taylor_swift_lyrics.csv")  %>%
+github_proj <- "https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/" 
+song_lyrics <- read_csv(paste0(github_proj, "data/taylor_swift_lyrics.csv"))  %>%
   unnest_tokens(word, lyric)
-
-# glimpse(lyrics)
-
-
 ```
 
 
-## A Taylor Swift Word Cloud
-
+## A lyrics word cloud
 ```{r}
 wc_count = 20
 wc_df <- song_lyrics %>% 
@@ -36,8 +34,69 @@ wc_df <- song_lyrics %>%
   count(word) %>%
   filter(n >= wc_count) %>%
   arrange(desc(n))
-# -> view here if you like! 
+#View(wc_df) <- and wow!
 wc_df %>%  with(wordcloud(words = word, freq = n, min.freq = 1, 
                   random.order = FALSE, rot.per = 0.35, 
                   colors = brewer.pal(8, "Dark2")))
 ```
+This word cloud was so awesome looking that I immediately posted it on Facebook. In my post, I asked people if they recognized it.  In order, the first three responses were: 
+
+1. Pop music
+2. Smokey Robinson & The Miracles
+3. The queen
+
+Isn't #2 a fascinating answer?
+
+## Sentiment by album
+```{r}
+nrc <- get_sentiments("nrc")
+
+song_lyrics %>%
+  inner_join(nrc, by = "word", relationship = "many-to-many") %>%
+  count(album, sentiment) %>%
+  group_by(album) %>%
+  mutate(total = sum(n)) %>%
+  ungroup() %>%
+  mutate(percentage = n / total) %>%
+  ggplot(aes(x = album, y = percentage, fill = sentiment)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(title = "Sentiment Distribution by Album",
+       x = "Album",
+       y = "Percentage",
+       fill = "Sentiment")
+```
+As the code says, I took the NRC sentiment lexicon[^1], inner joined it with non stop-word lyrics, and then summed the nrc sentiment score per album. Given they are roughly so equal, the question this leaves me with is, is this about the right mix of emotions for a blockbuster pop album? 
+
+## The most positive and negatives songs
+```{r }
+bing <- get_sentiments("bing")
+top_n_count <- 10
+
+song_lyrics %>%
+  inner_join(get_sentiments("bing"), by = "word", relationship = "many-to-many") %>%
+  filter(sentiment %in% c("positive", "negative")) %>%
+  count(track_title, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(net_sentiment = positive - negative) %>%
+  arrange(desc(net_sentiment)) %>%
+  slice(c(1:top_n_count, (n() - top_n_count + 1):n())) %>%
+  ungroup() %>%
+  ggplot(aes(x = reorder(track_title, net_sentiment), y = net_sentiment, 
+      fill = ifelse(net_sentiment >= 0, "Positive", "Negative"))) +
+    geom_bar(stat = "identity") +
+    scale_fill_manual(values = c("Positive" = "gold", "Negative" = "steelblue")) +
+    coord_flip() +
+    labs(title = "Most Positive and Negative Songs",
+         x = "Net Positive Sentiment Count",
+         y = "Song Title",
+         fill = "Sentiment") +
+    theme_minimal()
+
+```
+
+Though great looking, this is not the most advanced analysis. As the code suggests, I joined lyric words with the Bing sentiment lexicon[^2], then I grouped by song and took the top and bottom 10. This does not take into account satire, double negatives, etc. 
+
+[^1]: [NRC From Saif Mohammad and Peter Turney](https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm)
+[^2]: [Bing Lui and Collaborators](https://juliasilge.github.io/tidytext/reference/sentiments.html)
