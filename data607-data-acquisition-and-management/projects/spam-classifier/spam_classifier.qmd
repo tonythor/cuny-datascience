@@ -1,3 +1,15 @@
+---
+title: "Build a spam classifier"
+author: "By Tony Fraser"
+date: "November 15, 2023"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+
+```{r messages=FALSE, warning=FALSE, output=FALSE}
 library(tidyverse)
 library(caret)
 library(quanteda)
@@ -5,28 +17,21 @@ library(future)
 library(future.apply)
 library(quanteda.textmodels)
 
-class_dir <- "/data607-data-acquisition-and-management/projects/"
-proj_path <- paste0(getwd(), class_dir,  "spam-classifier/")
-
 load_files_to_df <- function(file_path, file_count = 1) {
   file_names <- list.files(path = file_path, full.names = TRUE, pattern = "^\\d+.*")
-  message(paste0("## loading ", file_count, " files from path ", file_path))
   file_names <- head(file_names, file_count)
   text_data <- set_names(file_names, nm = basename(file_names)) %>%
     map_df(~tibble(name = .y, data = read_file(.x)), .y = names(.))
   return(text_data)
 }
 
-preprocess_and_create_dfm <- function(df, cache_filename = "dfm_cache.rds") {
-  f_cache <- paste0(proj_path, cache_filename)
-
+preprocess_and_create_dfm <- function(df, cache_filename) {
   message("### preprocessing ...")
   message("#### setting up parallel text processing ...")
   plan(multisession, workers = 4)
   message("#### cleaning ...")
   clean_data <- future.apply::future_sapply(df$data, FUN = function(text) {
     text %>%
-      # str_replace_all("^(From|Return-Path|Received|Message-ID):.*", "") %>%
       str_replace_all("\\n", " ") %>%
       str_squish()
   }, USE.NAMES = FALSE)
@@ -40,17 +45,12 @@ preprocess_and_create_dfm <- function(df, cache_filename = "dfm_cache.rds") {
 
   message("#### removing sparse terms ...")
   dfm <- dfm_trim(dfm, sparsity = .95)
-  # message("## caching dfm ...")
-  # saveRDS(dfm, f_cache)
   return(dfm)
 }
 
 message("## Loading email files")
-mail <- load_files_to_df(paste0(proj_path,
-  "nogit_easy_ham/"), file_count = 100)
-spam <- load_files_to_df(paste0(proj_path, 
-  "nogit_spam/"), file_count = 100)
-# Combine datasets and add labels
+mail <- load_files_to_df("nogit_easy_ham/", file_count = 100)
+spam <- load_files_to_df("nogit_spam/", file_count = 100)
 all_mail <- bind_rows(
   mail %>% mutate(label = 1),
   spam %>% mutate(label = 0)
@@ -61,17 +61,52 @@ split_index <- createDataPartition(all_mail$label, p = 0.8, list = FALSE)
 train_set <- all_mail[split_index, ]
 test_set <- all_mail[-split_index, ]
 
-message("## Building training dataset")
+message("## Building training dataset dtm")
 train_set_dfm <- preprocess_and_create_dfm(train_set, 
   cache_filename = "train_set_dfm.rds")
-message("## Building test dataset")
+message("## Building test dataset dtm")
 test_set_dfm <- preprocess_and_create_dfm(test_set, 
   cache_filename = "test_set_dfm.rds")
 test_set_dfm <- dfm_match(test_set_dfm, featnames(train_set_dfm))
 
-message("## Modeling and predicting")
+message("## Model and predict")
 model <- textmodel_nb(train_set_dfm, y = factor(train_set$label))
 predictions <- predict(model, newdata = test_set_dfm)
 true_labels <- factor(test_set$label)
 conf_mat <- confusionMatrix(predictions, true_labels)
+```
+
+```{r}
+conf_mat <- confusionMatrix(predictions, true_labels)
 print(conf_mat)
+```
+
+### Results 
+```sh
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    0    1
+         0 1759   16
+         1  241 1984
+                                          
+               Accuracy : 0.9358          
+                 95% CI : (0.9277, 0.9432)
+    No Information Rate : 0.5             
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.8715          
+                                          
+ Mcnemar's Test P-Value : < 2.2e-16       
+                                          
+            Sensitivity : 0.8795          
+            Specificity : 0.9920          
+         Pos Pred Value : 0.9910          
+         Neg Pred Value : 0.8917          
+             Prevalence : 0.5000          
+         Detection Rate : 0.4397          
+   Detection Prevalence : 0.4437          
+      Balanced Accuracy : 0.9357          
+                                              
+       'Positive' Class : 0 
+```
