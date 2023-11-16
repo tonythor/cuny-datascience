@@ -1,5 +1,5 @@
 ---
-title: "Build a spam classifier"
+title: "A spam classifier"
 author: "By Tony Fraser"
 date: "November 15, 2023"
 format:
@@ -8,6 +8,19 @@ format:
     toc: true
     number_sections: true
 ---
+
+## Assignment
+
+_For this project, you can start with a spam/ham dataset, then predict the class of new documents (either withheld from the training dataset or from another source such as your own spam folder)._
+
+## To run locally
+
+If you'd like to run this code yourself, you'll have to download the [spam and ham email zips](https://spamassassin.apache.org/old/publiccorpus/) nd uncompressed separately on your local computer. Those files need to be moved into the following directories.
+
+1. Real emails: ./nogit_easy_ham 
+2. Spam emails: ./nogit_spam  
+
+## The code 
 
 ```{r messages=FALSE, warning=FALSE, output=FALSE}
 library(tidyverse)
@@ -49,6 +62,7 @@ preprocess_and_create_dfm <- function(df, cache_filename) {
 }
 
 message("## Loading email files")
+# Make sure these are here!
 mail <- load_files_to_df("nogit_easy_ham/", file_count = 100)
 spam <- load_files_to_df("nogit_spam/", file_count = 100)
 all_mail <- bind_rows(
@@ -73,40 +87,24 @@ message("## Model and predict")
 model <- textmodel_nb(train_set_dfm, y = factor(train_set$label))
 predictions <- predict(model, newdata = test_set_dfm)
 true_labels <- factor(test_set$label)
-conf_mat <- confusionMatrix(predictions, true_labels)
+
+
 ```
+
+### Confusion matrix results
+This is pretty effective and fairly consistent algorithm and program. I've ran it at least two dozen times, the lowest is low 92%'s, and the highest are low 94%'s. 
+
+With respect to turning dials and making tweaks, the biggest tweak is finding that about 100 messages is all it needed to make about the same level of consistent predictions.
+
+Please remember when reading the results to look at accuracy, confidence interval, and the reference/prediction block that shows errors and accurate predictions. this is how to read that chart. 
+
+| Prediction \ Reference | 0                 | 1                         |
+|------------------------|-------------------|---------------------------|
+| 0                      | True Negative     | False Positive (Type 1 Error) |
+| 1                      | False Negative (Type 2 Error) | True Positive            |
 
 ```{r}
+# print the confusion matrix
 conf_mat <- confusionMatrix(predictions, true_labels)
 print(conf_mat)
-```
-
-### Results 
-```sh
-Confusion Matrix and Statistics
-
-          Reference
-Prediction    0    1
-         0 1759   16
-         1  241 1984
-                                          
-               Accuracy : 0.9358          
-                 95% CI : (0.9277, 0.9432)
-    No Information Rate : 0.5             
-    P-Value [Acc > NIR] : < 2.2e-16       
-                                          
-                  Kappa : 0.8715          
-                                          
- Mcnemar's Test P-Value : < 2.2e-16       
-                                          
-            Sensitivity : 0.8795          
-            Specificity : 0.9920          
-         Pos Pred Value : 0.9910          
-         Neg Pred Value : 0.8917          
-             Prevalence : 0.5000          
-         Detection Rate : 0.4397          
-   Detection Prevalence : 0.4437          
-      Balanced Accuracy : 0.9357          
-                                              
-       'Positive' Class : 0 
 ```
