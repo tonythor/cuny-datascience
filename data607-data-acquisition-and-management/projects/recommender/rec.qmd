@@ -1,0 +1,103 @@
+---
+title: "The Mind Body App recommender systems"
+author: "By Tony Fraser"
+date: "November 16, 2023"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+
+# Assignment
+
+Your task is to analyze an existing recommender system that you find interesting.  You should:
+
+1. Perform a Scenario Design analysis as described below.  Consider whether it makes sense for your selected recommender system to perform scenario design twice, once for the organization (e.g. Amazon.com) and once for the organization's customers.
+2. Attempt to reverse engineer what you can about the site, from the site interface and any available information that you can find on the Internet or elsewhere.
+3. Include specific recommendations about how to improve the site's recommendation capabilities going forward. 
+4. Create your report using an R Markdown file, and create a discussion thread with a link to the GitHub repo where your Markdown file notebook resides.  
+
+You are not expected to need to write code for this discussion assignment.
+
+## About Mindbody
+
+### Overview
+
+Mindbody, originally known as HardBody software, began as a sole proprietorship, software as a service company in California in 1998. In 2005 the company launched MindBody online. 
+
+The company started as a third vendor that wrote software to help yoga teachers book their classes. They have since grown to be the biggest name in the booking space industry, bringing together most any type of person who has a space, and all the temporary people who seek to rent or participate in whatever goes on in that space. 
+
+They book for just about everything, including:
+
+1. classes, like yoga, swing, martial arts, acro, swing, pottery, etc.  
+2. sessions, spin, crossfit, meditation, etc. 
+3. empty spaces, for spaces for photo shoots, events, etc. 
+4. service type sessions, like taboos, tanning, hair removal, nail salons, etc. 
+
+It is their job to ironed out logistics around the booking of a class, both for the teachers, building owners, space managers, etc. 
+
+Their software handles things like:
+
+1. point of sale registers
+2. phone apps
+3. reoccurring billing 
+4. new vendor onboarding 
+5. payment of contractors and staff, etc. 
+
+### Winning in their field
+
+They are a software as a service company that makes money either by taking a tiny piece of each transaction, or by sharing a percentage of the monthly billing amount. If they want to win in their field, I suspect cost is one factor but not the biggest one. The most important features are probably ease of use by all parties, and time saving. You don't want either the student or the teacher to spend 15 minutes each day setting up their 45 minute spin class. 
+
+### Mindbody's untapped potential
+
+As a business, Mindbody knows they have to make it easy and quick for clients to register to the places they pay for memberships, but they have an opportunity to gain additional revenue by turning existing clients onto other places.
+
+They way they should see it is, _here is a crowd of people that are used to getting up and out to do a thing, maybe we can point them in the right direction for another thing._
+
+## Using the app
+
+### How it works
+
+The MindBody app seems to work entirely off geolocation. It finds the nearest spaces relative to where the user is, and it allows them to explore further. 
+
+### Daily usage system
+
+If you are a repeat user like me, and a member of this crossfit gym like me, to book you your morning routine workout you click your "Bad Ass Academy" logo, then find your gym, and hit book. It takes about 5 seconds once you're familiar.
+
+The important thing to note about this is that maybe 15% home screen of the screen is for this purpose. they are CLEARLY trying to get you to look at other things other than just your gym. 
+
+<div style="text-align:center;">
+<img src="./badass1.png" alt="badass1" width="400"/>
+</div>
+
+
+### The other system, the recommender system
+
+Looking at what isn't your favorites, most of that home screen, you can see they are trying to get you to you can see they are using geo location and grid coordinates to try to show you other things they book in your neighborhood. 
+
+<div style="text-align:center;">
+<img src="./geographic.png" width="400"/>
+</div>
+
+
+
+## Recommendations 
+
+There are several areas where they can improve.
+
+1. Push people toward known interests 
+
+Say there is a user who is a member of a gym that takes classes. And say this user is wrestling with waking up forcing themselves to go into the gym. Why not make the app a little more pushy, maybe active alerts that say "You usually sign up for the 8:30 AM class, would you like to sign up for it now?"
+
+It's possibly the case that because the member is already paying a monthly fee, Mindbody feel like they have that and they should push something else. There is much wasted opportunity for Mindbody to become a partner to the gym goer. 
+
+2. Ask us about what we what locally
+
+As a local to a neighborhood, it's likely we know what's going on around us. And if someone is paying a gym membership already, it is unlikely they will want to be targeted for gym classes. Maybe though, if where was a screen that told us the kinds of things we are interested in, say swing dancing, pottery, welding, speech writing, whatever and a class popped up in our neighborhood, we might go to it.
+
+And with respect to Ray Oldenburg's concept of three spaces, I think this geo-preference targeting applies in all three of our places, home, work, and the neutral third place where we gather with our community and interact. We all have experience navigating between these three spaces, and we all know quite about about our three spaces. It seems like a missed opportunity to see for Mindbody to help us with understand our own neighborhoods. 
+
+3. Partner with the user when they travel
+
+Mindbody knows we register for a lot of gym classes. And with all the descriptions and reviews, they likely know exactly what kind of classes we register for. It strikes me as unusual they don't take our preferences and suggest to us the same classes as we go far away from our three spaces.
