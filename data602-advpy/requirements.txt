@@ -1,0 +1,16 @@
+pip
+ipython
+install-jdk
+wheel
+awscli
+pyspark==3.3.0
+pyarrow
+numpy
+requests
+pprintpp
+prophet
+pyspark[sql]
+pandas
+Cython
+plotly==5.13.1
+icecream
