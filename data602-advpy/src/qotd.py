@@ -107,3 +107,47 @@ print(f"Is local_var set? {is_var('local_var')}")
 
 
 #6. Write a Python program to create a function that takes one argument, and that argument will be multiplied with an unknown given number} 
+
+
+########
+#1. What are the similarities and differences between pandas and numpy?   Include some type of example with code.
+
+
+
+#2. What is the ndarray in numPy?
+
+
+
+#3. Create a 1D array of numbers from 0 to 9 
+#Desired Output: array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+
+#4. Extract all odd numbers from array1 
+#array1 = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+
+#5. Get the common items between a and b  
+#input
+#a = np.array([1,2,3,2,3,4,3,4,5,6])
+#b = np.array([7,2,10,2,7,4,9,4,9,8])
+#Desired Output:
+#array([2, 4])
+#6. From array a remove all items present in array b 
+
+#Input:
+
+#a = np.array([1,2,3,4,5])
+#b = np.array([5,6,7,8,9])
+
+#Desired Output:
+
+#array([1,2,3,4])
+
+
+#7. Find out if iris has any missing values. 
+
+
+
+# Input
+#url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data'
+#iris = np.genfromtxt(url, delimiter=',', dtype='float', usecols=[0,1,2,3])
