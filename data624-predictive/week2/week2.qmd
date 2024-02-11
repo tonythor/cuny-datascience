@@ -1,0 +1,312 @@
+---
+title: "Hyndman Chapter 2"
+author: "By Tony Fraser"
+date: "3 Feb 2024"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+
+```{r load_libraries, echo=FALSE, message=FALSE, warning=FALSE}
+library(fpp3)
+library(patchwork)
+library(USgas)
+library(readxl)
+# library(ggplot2)
+# library(tsibble)
+# library(lubridate)
+# library(tsibble)
+# library(tsibbledata)
+# library(feasts)
+# library(dplyr)
+options(scipen=999)
+
+```
+## 2.1
+
+*Explore the following four time series: Bricks from aus_production, Lynx from pelt, Close from gafa_stock, Demand from vic_elec. Use ? (or help()) to find out about the data in each series.*
+
+*What is the time interval of each series?*
+* aus_production -> quarterly
+* pelt -> annual
+* gafa_stock -> daily
+* vic_elec -> every half hourly
+
+*Use autoplot() to produce a time plot of each series. For the last plot, modify the axis labels and title.*
+
+```{r 2dot1, warning=FALSE, message=FALSE} 
+plot_bricks <- aus_production %>% 
+  select(Quarter, Bricks) %>% 
+  autoplot(Bricks)
+
+plot_lynx <- pelt %>% 
+  select(Year, Lynx) %>% 
+  autoplot(Lynx)
+
+plot_gafa <- gafa_stock %>% 
+  select(Date, Close) %>% 
+  autoplot(Close)
+
+plot_demand  <- vic_elec %>%  
+  select(Time, Demand) %>% 
+  autoplot(Demand) +
+    labs(title = "Electricity Demand", y = "dEmand", x = "[30MIN]")+
+    theme_minimal()
+
+(plot_bricks | plot_lynx) / (plot_gafa | plot_demand)
+```
+
+\newpage
+
+## 2.2
+
+*Use filter() to find what days corresponded to the peak closing price for each of the four stocks in gafa_stock.*
+
+```{r 2dot2, warning=FALSE, message=FALSE} 
+gafa_stock %>%
+  group_by(Symbol) %>%
+  slice_max(order_by = Close, n = 1) 
+```
+
+It's interesting that FB and Google had their highest closing prices one day apart. 
+
+
+## 2.3
+
+*Download the file tute1.csv from the book website, open it in Excel (or some other spreadsheet application), and review its contents. You should find four columns of information. Columns B through D each contain a quarterly series, labelled Sales, AdBudget and GDP. Sales contains the quarterly sales for a small company over the period 1981-2005. AdBudget is the advertising budget and GDP is the gross domestic product. All series have been adjusted for inflation. You can read and view data with the code below, but check out what happens if you don't include facet_grid()*
+
+
+```{r 2dot3, warning=FALSE, message=FALSE} 
+
+tute1 <- readr::read_csv("./tute1.csv")
+
+mytimeseries <- tute1 |>
+  mutate(Quarter = yearquarter(Quarter)) |>
+  as_tsibble(index = Quarter)
+
+mtplot <- mytimeseries |>
+  pivot_longer(-Quarter) |>
+  ggplot(aes(x = Quarter, y = value, colour = name)) +
+  geom_line() +
+  facet_grid(name ~ ., scales = "free_y")
+
+mtplot2 <- mytimeseries |>
+  pivot_longer(-Quarter) |>
+  ggplot(aes(x = Quarter, y = value, colour = name)) +
+  geom_line()
+
+(mtplot| mtplot2) 
+```
+
+That's pretty interesting. It puts them all on the same chart! 
+
+
+## 2.4 
+
+*The USgas package contains data on the demand for natural gas in the US. Install the USgas package. Create a tsibble from us_total with year as the index and state as the key. Plot the annual natural gas consumption by state for the New England area (comprising the states of Maine, Vermont, New Hampshire, Massachusetts, Connecticut and Rhode Island).*
+
+```{r 2dot4}
+
+NE <- c("Maine", "Vermont", "New Hampshire", "Massachusetts", "Connecticut", "Rhode Island")
+
+nef_tsibble <- us_total %>% 
+  filter(state %in% NE) %>% 
+  as_tsibble(index = year, key = state)
+
+ggplot(nef_tsibble, aes(x = year, y = y, color = state, group = state)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Gas consumption by state",
+       x = "Year",
+       y = "Value of y",
+       color = "State") +
+  scale_color_brewer(palette = "Set1") 
+```
+
+## 2.5 
+Download tourism.xlsx from the book website and read it into R using read_excel(), and create a tsibble which is identical to the tourism tsibble from the tsibble package. 
+
+### Comparing xlxs to library 
+
+**From the tsibble package**
+```{r 2dot5_load_from_web, message=FALSE}
+data("tourism", package = "tsibble")
+glimpse(tourism)
+```
+**CSV rom the web**
+```{r}
+## Downloading from the web. 
+url <- "https://bit.ly/fpptourism" 
+
+temp_file <- tempfile(fileext = ".nogit.xlsx") 
+
+download.file(url, temp_file, mode = "wb") 
+
+t_from_excel <- read_excel(temp_file) %>% 
+  mutate(Quarter = yearquarter(ymd(Quarter))) #< this is the hard bit.
+
+unlink(temp_file)
+
+glimpse(t_from_excel) 
+
+```
+
+
+### Highest overnight trips
+
+Find what combination of Region and Purpose had the maximum number of overnight trips on average. 
+
+```{r 2dot5_find_the_highest} 
+data("tourism", package = "tsibble")
+
+mx <- tourism %>%
+  filter(Trips == max(Trips)) %>%
+  select("State", "Purpose")
+
+state_value <- mx$State
+purpose_value <- mx$Purpose
+
+```
+People mostly go to **`r state_value`** for **`r purpose_value`**. 
+
+### Roll up to state
+
+Create a new tsibble which combines the Purposes and Regions, and just has total trips by State.
+
+```{r 2dot5_roll_up_by_quarter_state }
+tourism %>%
+  as_tibble() %>%
+  group_by(Quarter, State) %>%
+  summarise(total_trips = sum(Trips), .groups = "drop") %>%
+  as_tsibble(index = Quarter, key=State) %>%
+  head(3)
+```
+
+## 2.8 
+
+*Use the following graphics functions: autoplot(), gg_season(), gg_subseries(), gg_lag(), ACF() and explore features from the following time series: Employed from us_employment, Bricks from aus_production, Hare from pelt,  Cost from PBS, and Barrels from us_gasoline.*
+
+```{r 2dot8_define_functions, message=FALSE}
+data(pelt, package="tsibbledata")
+data(aus_production, package="tsibbledata")
+data(PBS, package="tsibbledata")
+data("us_employment")
+
+generate_time_series_plots <- function(df, time_column, value_column, do_plots) {
+  df_tsibble <- as_tsibble(df, index = {{ time_column }})  
+  plots_list <- list()
+
+  if ("auto" %in% do_plots) {
+    plots_list[["Autoplot"]] <- autoplot(df_tsibble) + labs(title = "Autoplot")
+  }
+  if ("season" %in% do_plots) {
+    plots_list[["Seasonal_Plot"]] <- gg_season(df_tsibble, {{ value_column }}) + labs(title = "Seasonal Plot")
+  }
+  if ("subseries" %in% do_plots) {
+    plots_list[["Subseries_Plot"]] <- df_tsibble %>% gg_subseries({{ value_column }}) + labs(title = "Subseries Plot")
+  }
+  if ("lag" %in% do_plots) {
+    plots_list[["Lag_Plot"]] <- df_tsibble %>% gg_lag({{ value_column }}, geom = "point") + labs(title = "Lag Plot")
+  }
+  if ("acf" %in% do_plots) {
+    acf_result <- ACF(df_tsibble, {{ value_column }})
+    plots_list[["ACF_Plot"]] <- autoplot(acf_result) + labs(title = "ACF Plot")
+  }
+
+  return(plots_list)
+}
+```
+
+### Prescription costs from PBS
+It looks like costs are the highest around December / January, and lowest in February. This is a very seasonal industry. 
+
+```{r 2dot8_meds, message=FALSE, warning=FALSE, fig.height=14, fig.width=12}
+pre_f <- PBS %>%
+  as_tibble() %>%
+  group_by(Month) %>%
+  summarise(Cost = sum(Cost, na.rm = TRUE)) %>%
+  as_tsibble(index = Month)
+  
+pre_plots <- generate_time_series_plots(pre_f,  time_column = Month,  value_column = Cost, 
+  do_plots=c("auto", "season", "subseries", "lag", "acf"))
+
+plot_layout <- (pre_plots$Autoplot | pre_plots$Seasonal) /
+               (pre_plots$Subseries_Plot | pre_plots$ACF_Plot) /
+               pre_plots$Lag_Plot
+
+plot_layout + 
+  plot_layout(guides = "collect", ncol = 1, heights = c(1, 1, 2))
+```
+
+### Employed from us_employment
+Not much seasonality, at least not according the the subseries and seasonal plots. Also, there is an upward trend for people being employed. That makes a lot of sense, as when I was a child for every three people in the US back then, now there are four.
+
+```{r 2dot8_employment, message=FALSE, warning=FALSE, fig.height=14, fig.width=12}
+emp_f <- us_employment %>%
+  as_tibble() %>%
+  group_by(Month) %>%
+  summarise(Employed = sum(Employed, na.rm = TRUE)) %>%
+  as_tsibble(index = Month)
+  
+emp_plots <- generate_time_series_plots(emp_f,  time_column = Month,  value_column = Employed, 
+  do_plots=c("auto", "season", "subseries", "lag", "acf"))
+
+plot_layout <- (emp_plots$Autoplot | emp_plots$Seasonal) /
+               (emp_plots$Subseries_Plot | emp_plots$ACF_Plot) /
+               emp_plots$Lag_Plot
+
+plot_layout + 
+  plot_layout(guides = "collect", ncol = 1, heights = c(1, 1, 2))
+``` 
+
+
+
+### Bricks from aus_production
+Very strong seasonality in that there is less production during the first few months oft the year. Teh industry itself looks like it has ups and downs, isn't on a constant growth cycle. I suppose that makes sense as well. In boston, the entire back bay seems to be made out of bricks, and now almost nothing is.
+
+```{r 2dot8_bricks, message=FALSE, warning=FALSE, fig.height=14, fig.width=12}
+bricks_f = aus_production %>% select(Quarter, Bricks)
+bricks_plots <- generate_time_series_plots(bricks_f,  time_column = Quarter,  value_column = Bricks, 
+  do_plots=c("auto", "season", "subseries", "lag", "acf"))
+
+# Arrange the plots
+plot_layout <- (bricks_plots$Autoplot | bricks_plots$Seasonal) /
+               (bricks_plots$Subseries_Plot | bricks_plots$ACF_Plot) /
+               bricks_plots$Lag_Plot
+
+# Apply the layout configuration
+plot_layout + 
+  plot_layout(guides = "collect", ncol = 1, heights = c(1, 1, 2))
+```
+
+
+### Pelts from pelt
+You can't tell much about seasonality because the data is in annual increments.  It's almost better to plot this in a bar chart.
+
+```{r 2dot8_fur, message=FALSE, fig.height=5}
+pelts_f = pelt %>% select(Year, Hare)
+pelt_plots <- generate_time_series_plots(pelts_f,  time_column = Year,  value_column = Hare, 
+  do_plots=c("auto", "subseries", "acf"))
+
+(pelt_plots$Autoplot | pelt_plots$Subseries_Plot | pelt_plots$ACF_Plot)
+```
+
+### Barrels from us_gasoline
+This data is actual weeks, it's almost a little too zoomed, but you do see some higher costs in teh summer months. It also shows usage patterns going up over time, of course we expect that.
+
+```{r 2dot8_gas, message=FALSE, fig.height=14}
+b_plots <- generate_time_series_plots(us_gasoline, time_column = Week,  value_column = Barrels,    do_plots=c("auto", "season", "subseries", "lag", "acf"))
+
+plot_layout <- (b_plots$Autoplot | b_plots$Seasonal) /
+               (b_plots$Subseries_Plot | b_plots$ACF_Plot) /
+               b_plots$Lag_Plot
+
+plot_layout + 
+  plot_layout(guides = "collect", ncol = 1, heights = c(1, 1, 2))
+```
+
+
+
+
