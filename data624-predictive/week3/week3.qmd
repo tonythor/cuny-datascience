@@ -1,0 +1,371 @@
+---
+title: "Hyndman Chapter 3 Homework"
+author: "By Tony Fraser"
+date: "10 Feb 2024"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+
+*Please note that you can scroll to the left and right in the code blocks within this interface. Click into a code block, then start highlighting to the right. The sideways scrollbar will appear.*
+
+# Loading & Functions
+```{r load_libraries, message=FALSE, warning=FALSE}
+library(fpp3)
+library(patchwork)
+library(USgas)
+library(lubridate)
+library(scales)
+options(scipen=999)
+# data(global_economy)
+
+generate_time_series_plots <- function(df_tsibble, time_column, 
+                                value_column) {
+  plots<- list()
+  plots[["Autoplot"]] <- autoplot(df_tsibble) + labs(title = "Autoplot")
+  plots[["Seasonal_Plot"]] <- gg_season(df_tsibble, {{ value_column }}) + labs(title = "Seasonal Plot")
+  plots[["Subseries_Plot"]] <- df_tsibble %>% gg_subseries({{ value_column }})+ labs(title = "Subseries Plot")
+
+  acf_result <- ACF(df_tsibble, {{ value_column }})
+  plots[["ACF_Plot"]] <- autoplot(acf_result) + labs(title = "ACF Plot")
+
+  combined_plots <- (plots[['Autoplot']] | plots[['Seasonal_Plot']]) / 
+                    (plots[['Subseries_Plot']] | plots[['ACF_Plot']])
+
+  combined_plots  + plot_layout(guides = "collect", ncol = 1)
+
+}
+
+generate_math_plots <- function(df, value_column, time_column) {
+  plots <- list()
+  transformations <- c("none", "sqrt", "cubert", "log")
+  for (transformation in transformations) {
+    df_transformed <- df %>%
+      as_tibble() %>%
+      mutate(
+        transformed_value = case_when(
+          transformation == "none"   ~ !!sym(value_column),
+          transformation == "sqrt"   ~ sqrt(!!sym(value_column)),
+          transformation == "cubert" ~ (!!sym(value_column))^(1/3),
+          transformation == "log"    ~ log(!!sym(value_column))
+        )
+      ) %>%
+      rename(!!transformation := transformed_value) %>%
+      select(time_column, !!transformation) %>%
+      as_tsibble()
+
+    plots[[transformation]] <-  autoplot(df_transformed)
+  }
+  combined_plots <- (plots[['none']] | plots[['sqrt']]) /
+                    (plots[['cubert']] | plots[['log']])
+  combined_plots  + plot_layout(guides = "collect", ncol = 1)
+}
+
+generate_decomposition_plots <- function(df, value_column,  
+                             seasonally_adjusted = TRUE) { 
+  decomposed <- df |>
+  model(classical_decomposition(!!sym(value_column), type = "multiplicative")) |>
+  components()
+
+  component_plots <- autoplot(decomposed)
+
+  print(component_plots)
+
+  if (seasonally_adjusted) { # Plot seasonally adjusted as well
+    seasonally_adjusted <- decomposed %>%
+      mutate(Seasonally_Adjusted = !!sym(value_column) / seasonal)
+    seasonally_adjusted_plot <- autoplot(seasonally_adjusted, Seasonally_Adjusted)
+    print(seasonally_adjusted_plot)
+  }
+}
+
+
+```
+
+# 3.1
+
+Consider the GDP information in global_economy. Plot the GDP per capita for each country over time. Which country has the highest GDP per capita? How has this changed over time?
+
+*Wow, didn't expect luxembourg! Data shows an general upward trend in everything, with some downturns in the mid 80's and around y2k. It might need to be adjusted for inflation, as the angle on some of those lines looks like they could be flat if we did.*
+
+```{r three_one, warning=FALSE, message=FALSE}
+global_economy$GDP_per_capita <- global_economy$GDP / global_economy$Population
+
+### Just get all the countries up there!!
+ggplot(global_economy, aes(x = Year, y = GDP_per_capita, group = Country, color = Country)) +
+  geom_line() +
+  theme_minimal() +
+  labs(x = "Year", y = "GDP per capita", title = "GDP per capita over time") +
+  theme(legend.position = "none") 
+
+latest_year <- max(global_economy$Year)
+
+
+# Plot the winner
+top_country_latest_year <- global_economy %>%
+  filter(Year == latest_year) %>%
+  arrange(desc(GDP_per_capita)) %>%
+  slice(1)
+
+top_country_name <- top_country_latest_year$Country
+
+top_country_data <- global_economy %>%
+  filter(Country == top_country_name)
+
+ggplot(top_country_data, aes(x = Year, y = GDP_per_capita)) +
+  geom_line() +
+  theme_minimal() +
+  labs(x = "Year", y = "GDP per capita",
+       title = sprintf("GDP per capita over time for %s", top_country_name)) +
+  theme(legend.position = "none")
+
+## have a quick look at the top 10.
+top_ten <- global_economy %>%
+  filter(Year == latest_year) %>%
+  select(Country, GDP_per_capita, Population) %>%
+  arrange(desc(GDP_per_capita)) %>%
+  slice_head(n = 10)
+
+print(top_ten)
+
+
+```
+
+# 3.2
+ For each of the following series, make a graph of the data. If transforming seems appropriate, do so and describe the effect.
+
+## - United States GDP from `global_economy`.
+
+*It was a smooth line, I left alone.* 
+
+```{r us_global_economy, warning=FALSE, message=FALSE}
+
+global_economy %>% 
+    filter(Code == "USA") %>%
+    autoplot(GDP) +
+    scale_y_continuous(labels = scales::comma)
+
+```
+
+## - Slaughter of Victorian “Bulls, bullocks and steers” in `aus_livestock`.
+
+*For this, there was lot of data, and seemed to want to be smoothed out so I. It was almost illegible and I couldn't wrap my head around it, so I ran it through the plotting function I wrote last week. There is an obvious annual seasonality.*
+
+```{r slaughter_aus_livestock, warning=FALSE, message=FALSE}
+modified_aus <- aus_livestock %>% 
+    filter(Animal == "Bulls, bullocks and steers") %>%
+    group_by(Animal) %>%
+    summarise(total_count = sum(Count), .groups = "drop") %>%
+    mutate(`12-MA` = slider::slide_dbl(total_count, mean, 
+        .before = 12, .after = 12, .complete = TRUE))
+
+modified_aus %>% autoplot(total_count)  +
+   geom_line(aes(y = `12-MA`), colour = "#D55E00")
+
+generate_time_series_plots(modified_aus,  time_column = Month,  
+    value_column = total_count) 
+
+```
+## - Victorian Electricity Demand from `vic_elec`.
+
+*This is three years worth of data at a half hourly grain. We could have looked it by week or day, but I chose to look at over the entire data set. The first thing I did was to group it by day, and then I set up a six month moving average to level it out.* 
+
+*This was a good exercise for me, a little wrangling first but with an objective in mind, and then plotting. Also, this tsibble/tibble thing is really confusing and only seems to work half the time. From here out I think I'll do all my transformations either in a tibble or a dataframe, and then at the last minute covert back to a tisbble.*
+
+*In all honesty, this could have been the homework assignment all by itself, look at this by hour, day, half hour, find the trends, smooth things out, get to know this data, but I'm already at 6 hours and I still have most of this homework assignment to go.*
+
+```{r victorin_electoricity, warning=FALSE, message=FALSE}
+# > vic_elec %>% as_tibble %>%  summarise( MinDate = min(Date)
+# 1 2012-01-01 2014-12-31 < annual data for 3 full years.
+
+vt <- vic_elec %>% 
+    as_tibble %>%
+    group_by(Date) %>%
+    summarise(total_demand = sum(Demand), .groups = "drop") %>%
+    mutate(`6-MA` = slider::slide_dbl(total_demand, mean, .before = 6, .after = 6, .complete = TRUE)) %>%
+    as_tsibble
+
+vt %>% autoplot(total_demand) +
+    scale_y_continuous(labels = scales::comma) +
+    scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+    geom_line(aes(y = `6-MA`), colour = "#D55E00")
+
+```
+## - Gas production from `aus_production`.
+
+*There's some definite trending, cycles and seasonal behavior here. Let's have a look at this first wtih a 2 quarter smoothing, and then with some of last week's forecasting plots.*
+
+*There is some definite seasonality, and this is on an annual cycle.* 
+
+```{r gas, warning=FALSE, message=FALSE}
+library(slider)
+aus_production_ma <- aus_production %>%
+  as_tibble() %>%
+  mutate(`2Q-MA` = slider::slide_dbl(Gas, mean, .before = 1, .after = 1, .complete = TRUE)) %>%
+  as_tsibble()
+
+ aus_production_ma %>% 
+    autoplot(Gas)  + 
+    geom_line(aes(y = `2Q-MA`), colour = "#D55E00")
+
+generate_time_series_plots(aus_production_ma,  time_column = Quarter, value_column = Gas) 
+
+```
+
+# 3.3
+Why is a Box-Cox transformation unhelpful for the `canadian_gas` data?
+
+*You're supposed to use Box/Cox transformations when the difference between the sides of the graph is considerable -- when the peaks and valleys on the left are small and the peaks and valleys on the right are considerable. That's not really the case with this data. This data is more related to trend than seasonality, as show in the lag plot.*
+
+```{r canadian_gas_box_cox, warning=FALSE, message=FALSE}
+generate_time_series_plots(canadian_gas,  time_column = Month, value_column = Volume)
+```
+# 3.4
+What Box-Cox transformation would you select for your retail data (from Exercise 7 in Section 2.10)?
+
+*We didn't do exercise 2.7. But if we did,I don't think I'd use any transformations. The Y axis is legible and close to the same scale, in millions, with the whole dataset being between a few and 20 million. Introducing more math would add to the complexity of the problem.*
+
+```{r section27, warning=FALSE, message=FALSE}
+set.seed(12345678)
+aus_sample <- aus_retail |>
+  filter(`Series ID` == sample(aus_retail$`Series ID`,1))
+
+generate_time_series_plots(aus_sample, time_column = Month, value_column = Turnover)
+
+```
+
+
+
+# 3.5
+For the following series, find an appropriate Box-Cox transformation in order to stabilise the variance.
+
+*I am fairly certain these are all wrong. This was the dumb part of the assignment.*
+
+## Tobacco from `aus_production`
+
+*If we're going to use box cox transformations, we have to have peaks and valleys that are different on the two sides of the graph. None of these help that. This data is predictably seasonal and to scale.*
+
+```{r tobaccoFromAusProduction, warning=FALSE, message=FALSE}
+tobacco = aus_production %>% select (Quarter, Tobacco)
+generate_math_plots(tobacco, value_column = "Tobacco", time_column="Quarter")
+```
+
+
+## Economy class passengers between Melbourne and Sydney from`ansett`, 
+```{r ecoClassFromAnsett, warning=FALSE, message=FALSE}
+
+economy = ansett %>% 
+    filter(Class == "Economy", Passengers > 0) %>%
+    group_by("Week") %>%
+    summarise(total_people = sum(Passengers)) %>%
+    ungroup() %>%
+    as_tsibble()
+
+generate_math_plots(economy, 
+    time_column = "Week", value_column ="total_people")
+
+```
+
+## Pedestrian counts at Southern Cross Station from `pedestrian`.
+```{r pedestrianSoCrossStation, warning=FALSE, message=FALSE}
+scs = pedestrian %>% 
+        as_tibble() %>%
+        filter(Date >= "2015-01-01" & Date <= "2015-01-07")%>%
+        filter(Sensor == "Southern Cross Station") %>%
+        select(Date_Time, Count)
+
+
+generate_math_plots(scs, time_column = "Date_Time", 
+    value_column ="Count")
+```
+
+
+
+# 3.7 
+Consider the last five years of the Gas data from `aus_production`.
+`gas <- tail(aus_production, 5*4) |> select(Gas)` 
+
+1. Plot the time series. Can you identify seasonal fluctuations and/or a trend-cycle?
+
+*Yes, beginning of every year it is way down.*
+
+```{r threesseven_bullet1, message=FALSE, warning=FALSE}
+gas <- tail(aus_production, 5 * 4)  |> select(Gas)
+gas %>% autoplot() 
+```
+
+2. Use `classical_decomposition` with `type=multiplicative` to calculate the trend-cycle and seasonal indices.
+
+```{r classical, message=FALSE, warning=FALSE}
+generate_decomposition_plots(gas, value_column="Gas", seasonally_adjusted=FALSE)
+```
+
+3. Do the results support the graphical interpretation from part a?
+
+*Yes, 100%*.
+
+4. Compute and plot the seasonally adjusted data.
+
+```{r}
+generate_decomposition_plots(gas, value_column="Gas", seasonally_adjusted=TRUE)
+```
+
+5. Change one observation to be an outlier (e.g., add 300 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier?
+
+*I don't see anything different.* 
+
+```{r addanoutlier, message=FALSE, warning=FALSE}
+qtr <- make_yearquarter(year = 2010, quarter = 3)
+gas2 <- gas %>% add_row(tibble(Gas =5000,Quarter = qtr))
+
+generate_decomposition_plots(df=gas2, value_column="Gas", seasonally_adjusted = TRUE)
+```
+
+6. Does it make any difference if the outlier is near the end rather than in the middle of the time series?
+
+*I don't see any difference here either*
+```{r outlierinthemiddle, message=FALSE, warning=FALSE}
+fivek <- tibble(Gas = 5000, Quarter = make_yearquarter(year = 2010, quarter = 3))
+
+# Replace the row where Quarter is "2010 Q3"
+gas3 <- gas %>%
+  filter(Quarter != make_yearquarter(year = 2010, quarter = 3)) %>%
+  add_row(fivek)
+generate_decomposition_plots(df=gas3,value_column="Gas", seasonally_adjusted = TRUE)
+
+```
+
+# 3.8
+Recall your retail time series data (from Exercise 7 in Section 2.10). Decompose the series using X-11. Does it reveal any outliers, or unusual features that you had not noticed previously?
+
+*I'm not sure, but there might be some outliers in the later part of the 2010's. The remainders look a little high.*
+
+```{r warning=FALSE, message=FALSE}
+set.seed(12345678)
+retail_turnover <- aus_retail %>%
+  filter(`Series ID` == sample(aus_retail$`Series ID`,1)) %>%
+  select(Month, Turnover) 
+retail_turnover %>% autoplot() 
+
+retail_turnover %>%
+  model(
+    STL(Turnover ~  season(window = "periodic"),
+    robust = TRUE)) |>
+  components() |>
+  autoplot()
+```
+
+
+# 3.9 
+Figures 3.19 and 3.20 show the result of decomposing the number of persons in the civilian labour force in Australia each month from February 1978 to August 1995.
+![fsection.png](fsection.png)
+
+1. Write about 3–5 sentences describing the results of the decomposition. Pay particular attention to the scales of the graphs in making your interpretation.
+
+*If I understand this right, between one and two percent of the fluctuation is seasonal, otherwise it follows close to the trend. As far as teh cycle goes, it appears that there is most employment in December, and the least in January and August. aNd of course, there's that downward spike in about 91.*  
+
+2. Is the recession of 1991/1992 visible in the estimated components?
+
+*Something certainly is. The remainder is all negative during that time period.* 
