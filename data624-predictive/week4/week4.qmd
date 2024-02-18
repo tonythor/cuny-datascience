@@ -1,0 +1,419 @@
+---
+title: "Hyndman Chapter 5 Homework"
+author: "By Tony Fraser"
+date: "18 Feb 2024"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+```{r load_libraries, message=FALSE, warning=FALSE}
+library(fpp3)
+library(patchwork)
+library(USgas)
+library(lubridate)
+library(scales)
+options(scipen=999)
+```
+# 5.1
+
+Produce forecasts for the following series using whichever of NAIVE(y), SNAIVE(y) or RW(y ~ drift()) is more appropriate in each case:
+
+* Australian Population ( `global_economy`)
+```{r warning=FALSE}
+# first we filter.
+aus = global_economy |> 
+  filter(Code == "AUS") |>
+  select("Population") |>
+  filter(!is.na(Population))
+
+## then we check, probably drift. 
+fit_mable <- aus |>
+  model(
+#    seasonal_naive = SNAIVE(Population),
+    naive = NAIVE(Population),
+    drift = RW(Population ~ drift()), 
+    mean = MEAN(Population) 
+  )
+fc <- fit_mable |>
+  forecast(h = 10)
+
+# accuracy(fit_mable) |>
+#     arrange(.model) |> 
+#     select(.model, .type, RMSE, MAE, MAPE, MASE, RMSSE)
+
+# accuracy 
+
+# # A tibble: 3 × 7
+#   .model .type        RMSE      MAE   MAPE   MASE  RMSSE
+#   <chr>  <chr>       <dbl>    <dbl>  <dbl>  <dbl>  <dbl>
+# 1 drift  Training   76870.   59124.  0.347  0.235  0.293
+# 2 mean   Training 3979165. 3388690. 21.7   13.5   15.1  
+# 3 naive  Training  262766.  251271.  1.52   1      1  
+## drift definitely performs better.
+
+fc_drift <- fc %>% filter(.model == "drift")
+
+actual_data_plot <- ggplot(aus, aes(x = Year, y = Population)) +
+  geom_line(colour = "grey") 
+
+# forecast on top of the actual data plot
+actual_data_plot +
+  geom_line(data = fc_drift, aes(x = Year, y = .mean, group = .model), colour = "blue") +
+  labs(title = "Australia's Population (Drift)", y="# of People") +
+  guides(colour = guide_legend(title="Forecast")) +
+  scale_y_continuous(labels = scales::comma)  # This will format the y-axis labels
+
+```
+
+* Bricks (`aus_production`)
+```{r warning=FALSE}
+# first we filter.
+bricks = aus_production |> 
+  select("Bricks") |>
+  filter(!is.na(Bricks))
+
+## then we check, probably drift. 
+fit_mable <- bricks  |>
+  model(
+    seasonal_naive = SNAIVE(Bricks),
+    naive = NAIVE(Bricks),
+    drift = RW(Bricks ~ drift()), 
+    mean = MEAN(Bricks) 
+  )
+fc <- fit_mable |>
+  forecast(h = 10)
+
+# > accuracy(fit_mable) |>
+#     arrange(.model) |> 
+#     select(.model, .type, RMSE, MAE, MAPE, MASE, RMSSE) 
+# # A tibble: 4 × 7
+#   .model         .type     RMSE   MAE  MAPE  MASE RMSSE
+#   <chr>          <chr>    <dbl> <dbl> <dbl> <dbl> <dbl>
+# 1 drift          Training  40.2  32.9  8.29 0.927 0.831
+# 2 mean           Training  95.9  76.3 22.4  2.15  1.98 
+# 3 naive          Training  40.2  32.9  8.28 0.926 0.832
+# 4 seasonal_naive Training  48.3  35.5  8.84 1     1    
+# > 
+# naive works best, only ever so slightly 
+
+fc_chosen <- fc %>% filter(.model == "naive")
+
+actual_data_plot <- ggplot(bricks, aes(x = Quarter, y = Bricks)) +
+  geom_line(colour = "grey") 
+
+# forecast on top of the actual data plot
+actual_data_plot +
+  geom_line(data = fc_chosen, aes(x = Quarter, y = .mean, group = .model), colour = "blue") +
+  labs(title = "Australia's Brick Production (Naive)", y="# of Bricks in Millions") +
+  guides(colour = guide_legend(title="Forecast")) +
+  scale_y_continuous(labels = scales::comma)  # This will format the y-axis labels
+
+```
+
+* NSW Lambs (`aus_livestock`)
+```{r warning=FALSE}
+# first we filter.
+lambs = aus_livestock |> 
+  filter(Animal == "Lambs" & State == "New South Wales" ) |>
+  filter(!is.na(Count)) |>
+  select("Count")
+
+## then we check, probably drift. 
+fit_mable <- lambs  |>
+  model(
+    seasonal_naive = SNAIVE(Count),
+    naive = NAIVE(Count),
+    drift = RW(Count ~ drift()), 
+    mean = MEAN(Count) 
+  )
+
+fc <- fit_mable |>
+  forecast(h = 50)
+
+# > accuracy(fit_mable) |>
+#     arrange(.model) |> 
+#     select(.model, .type, RMSE, MAE, MAPE, MASE, RMSSE) 
+# # A tibble: 4 × 7
+#   .model         .type      RMSE    MAE  MAPE  MASE RMSSE
+#   <chr>          <chr>     <dbl>  <dbl> <dbl> <dbl> <dbl>
+# 1 drift          Training 50291. 40124.  9.96 0.958 0.910
+# 2 mean           Training 72452. 57618. 14.8  1.38  1.31 
+# 3 naive          Training 50293. 40134.  9.97 0.958 0.910
+# 4 seasonal_naive Training 55281. 41900  10.4  1     1.00 
+# > 
+# drift works best
+
+fc_chosen <- fc %>% filter(.model == "drift")
+
+actual_data_plot <- ggplot(lambs, aes(x = Month, y = Count)) +
+  geom_line(colour = "grey") 
+
+# forecast on top of the actual data plot
+actual_data_plot +
+  geom_line(data = fc_chosen, aes(x = Month, y = .mean, group = .model), colour = "blue") +
+  labs(title = "Lambs slaughtered (Drift)", y="# lambs") +
+  guides(colour = guide_legend(title="Forecast")) +
+  scale_y_continuous(labels = scales::comma) 
+
+```
+
+* Household wealth (`hh_budget`).
+```{r warning=FALSE}
+# first we filter.
+wealth <- hh_budget |>
+  filter(Country == "USA") |>
+  select(Wealth, Year) |>
+  filter(!is.na(Wealth))
+ 
+## then we check, probably drift. 
+fit_mable <- wealth  |>
+  model(
+    # seasonal_naive = SNAIVE(Wealth),
+    naive = NAIVE(Wealth),
+    drift = RW(Wealth ~ drift()), 
+    mean = MEAN(Wealth) 
+  )
+fc <- fit_mable |>
+  forecast(h = 10)
+
+accuracy(fit_mable) |>
+    arrange(.model) |> 
+    select(.model, .type, RMSE, MAE, MAPE, MASE, RMSSE) 
+# A tibble: 3 × 7
+#   .model .type     RMSE   MAE  MAPE  MASE RMSSE
+#   <chr>  <chr>    <dbl> <dbl> <dbl> <dbl> <dbl>
+# 1 drift  Training  32.7  24.7  4.75 0.927 0.981
+# 2 mean   Training  42.1  35.8  6.73 1.34  1.26 
+# 3 naive  Training  33.4  26.6  5.10 1     1    
+# drift is best. 
+
+fc_chosen <- fc %>% filter(.model == "drift")
+
+actual_data_plot <- ggplot(wealth, aes(x = Year, y = Wealth)) +
+  geom_line(colour = "grey") 
+
+# # forecast on top of the actual data plot
+actual_data_plot +
+  geom_line(data = fc_chosen, aes(x = Year, y = .mean, group = .model), colour = "blue") +
+  labs(title = "US Wealth as a percentage of net disposable income (Drift) ", y="Wealth aas a percentage of net disposable income") +
+  guides(colour = guide_legend(title="Forecast")) 
+
+```
+
+* Australian takeaway food turnover (`aus_retail`).
+
+```{r warning=FALSE}
+# first we filter.
+takeaway  <- aus_retail %>%
+  filter(Industry == "Takeaway food services") %>%
+  index_by(Month) %>%
+  summarise(total_turnover = sum(Turnover, na.rm = TRUE)) %>%
+  ungroup()
+ 
+# ## then we check, probably seasonal 
+fit_mable <- takeaway  |>
+  model(
+    seasonal_naive = SNAIVE(total_turnover),
+    naive = NAIVE(total_turnover),
+    drift = RW(total_turnover ~ drift()), 
+    mean = MEAN(total_turnover) 
+  )
+fc <- fit_mable |>
+  forecast(h = 20)
+
+# accuracy(fit_mable) |>
+# +     arrange(.model) |> 
+# +     select(.model, .type, RMSE, MAE, MAPE, MASE, RMSSE)
+# # A tibble: 4 × 7
+#   .model         .type     RMSE   MAE  MAPE  MASE RMSSE
+#   <chr>          <chr>    <dbl> <dbl> <dbl> <dbl> <dbl>
+# 1 drift          Training  52.4  34.1  4.51 0.767 0.930
+# 2 mean           Training  401.  340.  65.5  7.64  7.12 
+# 3 naive          Training  52.6  34.2  4.53 0.769 0.932
+# 4 seasonal_naive Training  56.4  44.5  6.48 1     1   
+# # drift is best. 
+fc_chosen <- fc %>% filter(.model == "drift")
+
+actual_data_plot <- ggplot(takeaway, aes(x = Month, y = total_turnover)) +
+  geom_line(colour = "grey") 
+
+# # # forecast on top of the actual data plot
+actual_data_plot +
+  geom_line(data = fc_chosen, aes(x = Month, y = .mean, group = .model), colour = "blue") +
+  labs(title = "AUS total turnover(Drift) ", y="turnover in australian dollars") +
+  guides(colour = guide_legend(title="Forecast")) 
+```
+
+# 5.2
+Use the Facebook stock price (data set `gafa_stock`) to do the following:
+
+1. Produce a time plot of the series.
+2. Produce forecasts using the drift method and plot them.
+3. Show that the forecasts are identical to extending the line drawn between the first and last observations.
+4. Try using some of the other benchmark functions to forecast the same data set. Which do you think is best? Why?
+
+*#'s1-3 are covered in the plot. For #4, it's almost a toss up between drift and naive, but the more decimal places you go out, the more drift becomes better.*
+
+```{r warning=FALSE}
+# accuracy(fit_mable) |>
+#   arrange(.model) |> 
+#   select(.model, .type, RMSE, MAE, MAPE, MASE, RMSSE)
+# # A tibble: 3 × 7
+#   .model .type     RMSE   MAE  MAPE   MASE RMSSE
+#   <chr>  <chr>    <dbl> <dbl> <dbl>  <dbl> <dbl>
+# 1 drift  Training  2.60  1.56  1.18  0.998  1.00
+# 2 mean   Training 35.8  30.9  25.7  19.7   13.8 
+# 3 naive  Training  2.60  1.57  1.18  1.00   1   
+
+fb <- gafa_stock |>
+  filter(Symbol == "FB", year(Date) >= 2015) |>
+  mutate(day = row_number()) |>
+  update_tsibble(index = day, regular = TRUE) |>
+  select(day, Close)
+
+# Modeling
+fit_mable <- fb  |>
+  model(
+    naive = NAIVE(Close),
+    drift = RW(Close ~ drift()), 
+    mean = MEAN(Close) 
+  )
+
+fc <- fit_mable |>
+  forecast(h = 20)
+
+fc_chosen <- fc %>% filter(.model == "drift")
+
+drift_start <- fb %>%
+  as_tibble() |> 
+  summarise(day = min(day), close = first(Close))
+drift_end <- fb %>%
+  as_tibble() |> 
+  summarise(day = max(day), close = last(Close))
+
+
+actual_data_plot <- ggplot(fb, aes(x = day, y = Close)) +
+  geom_line(colour = "grey") +
+  geom_segment(data = NULL, aes(x = drift_start$day, y = drift_start$close, 
+                                xend = drift_end$day, yend = drift_end$close),
+               colour = "red", linetype = "dashed") +
+  geom_line(data = fc_chosen, aes(x = day, y = .mean, group = .model), colour = "blue") +
+  labs(title = "FB Stock", y="Close") +
+  guides(colour = guide_legend(title="Forecast"))
+
+print(actual_data_plot)
+
+```
+
+# 5.3
+Apply a seasonal naïve method to the quarterly Australian beer production data from 1992. Check if the residuals look like white noise, and plot the forecasts. What can you conclude? 
+
+*Residuals are hovering around zero with not a lot of discernable pattern. ACF doesn't have a pattern. The histogram seems to be fairly normal and not have a pattern. I think the fit is ok.*
+
+```{r warning=FALSE}
+# Extract data of interest
+recent_production <- aus_production |>
+  filter(year(Quarter) >= 1992)
+# Define and estimate a model
+fit <- recent_production |> model(SNAIVE(Beer))
+# Look at the residuals
+fit |> gg_tsresiduals()
+# Look a some forecasts
+fit |> forecast() |> autoplot(recent_production)
+
+```
+
+
+# 5.4
+Repeat the previous exercise using the Australian Exports series from `global_economy` and the Bricks series from `aus_production`. Use whichever of NAIVE() or SNAIVE() is more appropriate in each case.
+
+1. Exports from `global_economy`
+
+*Same thing as 5.3, residuals don't seem to be following a pattern, ACF isn't unusual, normally distributed residuals. I think this fit is ok.*  
+```{r, warning=FALSE}
+aus= global_economy |> 
+  filter(Code == "AUS") |>
+  select("Exports") |>
+  filter(!is.na(Exports))
+# Has to be NAIVE.
+fit <- aus |> model(NAIVE(Exports))
+fit |> gg_tsresiduals()
+fit |> forecast() |> autoplot(aus)
+
+```
+
+2. Bricks form `aus_production`
+
+*Interesting. Naive is a better predictor as proven above in the first question, but I thought I'd plot them both anyway (not shown.) When using SNAIVE, you can definitely see patterns in the residuals plots, way more than NAIVE. This is quarterly data, I figure seasonal would be a better predictor. Regardless, NAIVE is a better fit*
+
+```{r, warning=FALSE}
+bricks = aus_production |> 
+  select("Bricks") |>
+  filter(!is.na(Bricks))
+
+fit <- bricks |> model(NAIVE(Bricks))
+fit |> gg_tsresiduals()
+fit |> forecast() |> autoplot(bricks)
+
+```
+
+# 5.7 
+
+For your retail time series (from Exercise 7 in Section 2.10):
+
+1. Create a training dataset consisting of observations before 2011 using
+
+```{r warning=FALSE} 
+set.seed(12345678)
+myseries <- aus_retail |>
+  filter(`Series ID` == sample(aus_retail$`Series ID`,1))
+
+myseries_train <- myseries |>
+  filter(year(Month) < 2011)
+```
+
+2. Check that your data have been split appropriately by producing the following plot.
+
+```{r warning=FALSE} 
+autoplot(myseries, Turnover) +
+  autolayer(myseries_train, Turnover, colour = "red")
+```
+
+3. Fit a seasonal naïve model using SNAIVE() applied to your training data (myseries_train).
+
+```{r warning=FALSE} 
+fit <- myseries_train |>
+  model(SNAIVE(Turnover))
+```
+
+4. Check the residuals. Do the residuals appear to be uncorrelated and normally distributed?
+*No. The residuals plot shows a trend up and down, the ACF plot had a definite pattern approaching zero, and the distribution histogram hs skewed heavily positive.*
+
+```{r warning=FALSE} 
+fit |> gg_tsresiduals()
+```
+
+5. Produce forecasts for the test data
+
+```{r warning=FALSE} 
+fc <- fit |>
+  forecast(new_data = anti_join(myseries, myseries_train))
+fc |> autoplot(myseries)
+```
+
+6. Compare the accuracy of your forecasts against the actual values.
+*You can see the seasonality, it doesn't factor the trend in enough I think, and it seems to expect a downward trend.* 
+
+```{r}
+fit |> accuracy()
+fc |> accuracy(myseries)
+```
+
+7. How sensitive are the accuracy measures to the amount of training data used?
+
+*I don't have enough experience to answer this question. The sample has about 360 records, while the dataset has about 64K. Certainly one is smaller and less accurate. RMSE shows not too different of a forecasting error, I think.  MAPE and MASE are off by about 30%, so maybe that means the forecasting is going to also be off by about 30% between the sample and the population?*
+
+*In my day job, though we strive for perfection, it seems like if we were off a few million here and there it might not matter. 30% seems like a small difference, especially if you're actively trying to do it better all the time. I think the sample might be good enough.* 
+```

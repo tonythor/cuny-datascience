@@ -61,3 +61,10 @@ us_retail_employment |>
   model(STL(Employed ~ season(window = 15) + trend(window = 15), robust=FALSE)) |>
   components() |>
   autoplot() + labs(title="STL Decomp: US Retail")
+
+#defualts owrk pretty good
+us_retail_employment |>
+  model(STL(Employed)) |>
+  components() |>
+  autoplot()
+
