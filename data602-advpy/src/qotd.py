@@ -151,3 +151,125 @@ print(f"Is local_var set? {is_var('local_var')}")
 # Input
 #url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data'
 #iris = np.genfromtxt(url, delimiter=',', dtype='float', usecols=[0,1,2,3])
+
+
+
+#1. What are the similarities and differences between pandas and numpy?   Include some type of example with code.
+
+"""
+They are both python libraries used for data manipulation, but they mostly do different things. Numpy is low-level number-crunching system mostly, think of linear algebra, scientific math, and multiplying math matrices together. Pandas is more widely used as columnar format data manipulation, think anything you can do in excel, but a whole lot more, and with a whole lot more excel sheets at the same time.
+
+Most in this field probably don't know a lot about Numpy, but most of Pandas's math functionality runs on the Numpy API. 
+Pandas is huge and maybe it's all you need most of the time, but know that your code is most likely running through Numpy.
+
+
+Here's a simple example.
+
+
+In [1]: import numpy as np
+   ...: import pandas as pd
+   ...:
+   ...: # Caffeine content in ounces
+   ...: # Diet Drinks, Energy Drinks, Sugar-Free Drinks
+   ...: np_caffeine = np.array([[12, 10, 8], [30, 35, 40], [10, 12, 15]])
+   ...:
+   ...: # Creating a DataFrame with Pandas
+   ...: pd_caffeine = pd.DataFrame(np_caffeine,
+   ...:                            columns=["Drink 1", "Drink 2", "Drink 3"],
+   ...:                            index=["Diet Drinks", "Energy Drinks", "Sugar
+   ...: -Free Drinks"])
+   ...:
+   ...: # Example Operation: Calculating the average caffeine content for each c ategory
+   ...: # Using NumPy
+   ...: np_mean_caffeine = np.mean(np_caffeine, axis=1)
+   ...:
+   ...: # Using Pandas
+   ...: pd_mean_caffeine = pd_caffeine.mean(axis=1)
+   ...:
+   ...: print("Average Caffeine Content with NumPy:", np_mean_caffeine)
+   ...: print("Average Caffeine Content with Pandas:\n", pd_mean_caffeine)
+Average Caffeine Content with NumPy: [10.         35.         12.33333333]
+Average Caffeine Content with Pandas:
+ Diet Drinks          10.000000
+Energy Drinks        35.000000
+Sugar-Free Drinks    12.333333
+dtype: float64
+
+
+
+2. What is the ndarray in numPy?
+
+N-dimensional-array, aka ndarray,  is the most core structure in numpy. To use this data type, you load data and then put it into one of these ndarrays. From there, the ndarray is an engine. You can ue it to slice, index, search, apply math, etc. And it's fast. NDArray was designed with one thing in mind, to be fast. 
+
+
+
+3. Create a 1D array of numbers from 0 to 9 
+Desired Output:  array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+## 3 answer ## 
+In [5]: import numpy as np
+   ...:
+   ...: array_range = np.arange(10)
+   ...: print(array_range)
+[0 1 2 3 4 5 6 7 8 9]
+
+
+## 4. Extract all odd numbers from array1 
+array1 = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+## 4 answer ## 
+[x for x in array1 if x % 2 != 0]
+
+
+## 5. Get the common items between a and b  
+#input
+a = np.array([1,2,3,2,3,4,3,4,5,6])
+b = np.array([7,2,10,2,7,4,9,4,9,8])
+#Desired Output:
+array([2, 4])
+
+## 5 answer ## 
+In [13]: common_elements = np.intersect1d(a, b)
+    ...: print(common_elements)
+[2 4]
+
+
+
+6. From array a remove all items present in array b 
+#Input:
+a = np.array([1,2,3,4,5])
+b = np.array([5,6,7,8,9])
+#Desired Output:
+array([1,2,3,4])
+
+## 6 answer ## 
+result = np.setdiff1d(a, b)
+print(result)
+
+
+
+7. Find out if iris has any missing values. 
+# Input
+url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data'
+iris = np.genfromtxt(url, delimiter=',', dtype='float', usecols=[0,1,2,3])
+
+I don't think it's missing anything, but I'm not really sure.  Usually if you're asking for missing data it's either from a time series, or it's n records from population N. This is neither of those. It could e missing a field within a row, so we can check for that.
+
+Also, pandas understands the structure within the csv reader, so I used that.
+
+
+In [36]: import pandas as pd
+In [37]: url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data'
+In [38]: iris = pd.read_csv(url)
+In [39]: pd.isnull(iris).any()
+Out[39]:
+5.1            False
+3.5            False
+1.4            False
+0.2            False
+Iris-setosa    False
+dtype: bool
+
+
+
+"""
