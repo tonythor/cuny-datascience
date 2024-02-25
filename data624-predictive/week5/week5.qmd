@@ -1,0 +1,198 @@
+---
+title: "Kuhn Johnson Chapter 3 homework "
+author: "By Tony Fraser"
+date: "24 Feb 2024"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+```{r load_libraries, message=FALSE, warning=FALSE}
+libraries <- c("caret", "corrplot", "AppliedPredictiveModeling", "e1071",
+               "patchwork", "MASS", "ggplot2", "mlbench", "dplyr", "tidyr")
+
+# Loop through the list and load each library
+for(lib in libraries) {
+    library(lib, character.only = TRUE)
+}
+
+data(Soybean)
+data(Glass)
+```
+
+# 3.1 Glass
+
+The UCIrvine Machine Learning Repository contains a data set related to glass identification. The data consist of 214 glass samples labeled as one of seven class categories. There are nine predictors, including the refractive index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe.
+
+
+## 3.1.A  Predictor distributions and relationships
+
+Using visualizations, explore the predictor variables to understand their distributions as well as the relationships between predictors.
+
+*There's lots to see in these distribution charts. First, there are some strong correlations. The histograms show more than half of these variables having skew or outliers, that might require transformation if we are to model.* 
+
+```{r glass_irvine, message=FALSE, warning=FALSE}
+plot_Si <- ggplot(Glass, aes(x=Si)) + geom_histogram(bins=30) + ggtitle("Si")
+plot_Na <- ggplot(Glass, aes(x=Na)) + geom_histogram(bins=30) + ggtitle("Na")
+plot_Al <- ggplot(Glass, aes(x=Al)) + geom_histogram(bins=30) + ggtitle("Al")
+
+plot_Ba <- ggplot(Glass, aes(x=Ba)) + geom_histogram(bins=30) + ggtitle("Ba")
+plot_RI <- ggplot(Glass, aes(x=RI)) + geom_histogram(bins=30) + ggtitle("RI")
+plot_Fe <- ggplot(Glass, aes(x=Fe)) + geom_histogram(bins=30) + ggtitle("Fe")
+
+plot_Mg <- ggplot(Glass, aes(x=Mg)) + geom_histogram(bins=30) + ggtitle("Mg")
+plot_K <- ggplot(Glass, aes(x=K)) + geom_histogram(bins=30) + ggtitle("K")
+plot_Ca <- ggplot(Glass, aes(x=Ca)) + geom_histogram(bins=30) + ggtitle("Ca")
+
+
+## Ca is taken out if you factor out insignificant factors.
+correlations <- cor(Glass[, sapply(Glass, is.numeric)])
+highCorr <- findCorrelation(correlations, cutoff = .75)
+filteredData <- Glass[, -highCorr]
+filteredCorrelations <- cor(filteredData[, sapply(filteredData, is.numeric)])
+corrplot(filteredCorrelations, order = "hclust")
+mtext("Glass Variable Correlation Chart", side = 2, line = 2)
+```
+```{r glass_hist, fig.height=12,fig.width=10}
+(plot_Si | plot_Na | plot_Al ) /
+(plot_Ba | plot_RI | plot_Fe ) /
+(plot_Mg | plot_K | plot_Ca)
+```
+
+## 3.1.B Outliers and Skew
+
+Do there appear to be any outliers in the data? Are any predictors skewed?
+
+*Yes to both. Both the box and distribution plots show both outliers and skew. Ba and Fe are positively skewed, suggesting a transformation might normalize data and improve model performance. Si and Na seem fine.*
+
+```{r fig.height=8}
+plot_Si <- ggplot(Glass, aes(x=Si)) + geom_histogram(bins=30) + ggtitle("Si")
+plot_Na <- ggplot(Glass, aes(x=Na)) + geom_histogram(bins=30) + ggtitle("Na")
+plot_Al <- ggplot(Glass, aes(x=Al)) + geom_histogram(bins=30) + ggtitle("Al")
+plot_Ba <- ggplot(Glass, aes(x=Ba)) + geom_histogram(bins=30) + ggtitle("Ba")
+
+plot_RI <- ggplot(Glass, aes(x=RI)) + geom_histogram(bins=30) + ggtitle("RI")
+plot_Fe <- ggplot(Glass, aes(x=Fe)) + geom_histogram(bins=30) + ggtitle("Fe")
+plot_Mg <- ggplot(Glass, aes(x=Mg)) + geom_histogram(bins=30) + ggtitle("Mg")
+plot_K <- ggplot(Glass, aes(x=K)) + geom_histogram(bins=30) + ggtitle("K")
+
+boxplot(Glass[, sapply(Glass, is.numeric)], 
+        main = "Boxplot for All Predictor Variables", 
+        las = 2, 
+        col = rainbow(ncol(Glass[, sapply(Glass, is.numeric)]))
+        )
+
+```
+
+## 3.1.C Transformations 
+
+Are there any relevant transformations of one or more predictors that might improve the classification model?
+
+*Yes, BoxCox transformation would work well here. It might look something like this.*
+
+```{r predict_glass, message=FALSE, warning=FALSE}
+head(Glass)
+numeric_predictors <- sapply(Glass[, -ncol(Glass)], is.numeric)
+for(i in which(numeric_predictors)) {
+  skewness_value <- skewness(Glass[[i]])
+  skewness_threshold = 1 
+  if(abs(skewness_value) > skewness_threshold) { 
+    # Find the best lambda for Box-Cox transformation
+    bc_transform <- BoxCoxTrans(Glass[[i]])
+    # Apply the transformation
+    Glass[[i]] <- predict(bc_transform, Glass[[i]])
+  }
+}
+head(Glass)
+```
+
+# 3.2. Soybeans 
+
+The soybean data can also be found at the UC Irvine Machine Learning Repository. Data were collected to predict disease in 683 soybeans. The 35 predictors are mostly categorical and include information on the environmental conditions (e.g., temperature, precipitation) and plant conditions (e.g., left spots, mold growth). The outcome labels consist of 19 distinct classes.
+
+## 3.2.A Degenerates
+Investigate the frequency distributions for the categorical predictors. Are any of the distributions degenerate in the ways discussed earlier in this chapter?
+
+*Yes, there are degenerative distributions. To be considered **degenerate**, 1. either a single category dominates, 2. there is very low frequency of most categories, or 3. there is perfect separation. In this case, most of the variables seem to be spiked at zero, falling into scenario 2.*
+
+*Let's look at them all, you can see for yourself.*
+
+```{r sobyeans, fig.height=16, fig.width=10, message=FALSE, warning=FALSE}
+plot_list <- list()
+
+for (var in names(Soybean)) {
+  if (is.factor(Soybean[[var]])) {
+    p <- ggplot(Soybean, aes_string(x = var)) + 
+            geom_bar() + 
+            theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+            labs(x = var, y = 'Count') +  # Set axis labels
+            ggtitle(var)
+    plot_list[[var]] <- p
+  }
+}
+
+
+plot_grid <- wrap_plots(plot_list, ncol = 4)
+plot_grid
+
+```
+
+## 3.2.B Review Missing Data
+Roughly 18 % of the data are missing. Are there particular predictors that are more likely to be missing? Is the pattern of missing data related to the classes?
+
+*There is a definite pattern with missing data. There are some classes that are full of data, and some classes have almost no data at all. Let's place them side by side to see.* 
+
+```{r fig.width=10}
+# first let's consider the whole dataset.
+missing_info <- Soybean %>%
+  summarise(across(everything(), ~sum(is.na(.)))) %>%
+  pivot_longer(cols = everything(), names_to = "column_name", values_to = "missing") %>%
+  mutate(missing_percentage = (missing / nrow(Soybean)) * 100) %>%
+  arrange(desc(missing_percentage))
+
+# now let's look by class. 
+missing_by_class <- Soybean %>%
+  group_by(Class) %>%
+  summarise_all(~ mean(is.na(.))) %>%
+  pivot_longer(cols = -Class, names_to = "column_name", values_to = "Missing_Percentage") %>%
+  group_by(Class) %>%
+  summarise(Total_Missing_Percentage = mean(Missing_Percentage))
+
+
+by_class_missing <- ggplot(missing_by_class, aes(x = reorder(Class, -Total_Missing_Percentage), y = Total_Missing_Percentage)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "Class", y = "Missing Data Percentage", title = "Missing Data Percentage by Class")
+
+
+total_missing <- ggplot(missing_info, aes(x = reorder(column_name, -missing_percentage), y = missing_percentage)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(x = "Column Name", y = "Missing Percentage", title = "Missing Data Percentage by Column")
+
+(total_missing | by_class_missing )
+```
+
+## 3.2.C Imputation
+Develop a strategy for handling missing data, either by eliminating predictors or imputation.
+
+*Perhaps the best alternative would be imputation. And for somebody new to this, perhaps a simple imputation strategy like mean averages is a good start. It should most likely be imputed by class, so let's try that out with code*
+
+*Please note it took about three hours to write ths code. Simple yes, but not easy.*
+
+```{r}
+Soybean_imputed <- Soybean %>%
+  mutate(across(-Class, ~as.numeric(as.character(.)))) %>%
+  group_by(Class) %>%
+  mutate(across(everything(), ~if_else(is.na(.), mean(., na.rm = TRUE), .))) %>%
+  ungroup() %>%
+  mutate(across(-Class, ~factor(., ordered = TRUE))) #Convert the numeric columns back to ordinal factors 
+
+
+print("Before imputation")
+print(sapply(Soybean, function(x) sum(is.na(x))))
+print("After imputation")
+print(sapply(Soybean_imputed, function(x) sum(is.na(x))))
+
+```
