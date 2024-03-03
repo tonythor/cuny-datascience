@@ -1,0 +1,430 @@
+---
+title: "Hyndman Chapter 8 Homework"
+author: "By Tony Fraser"
+date: "2 Mar 2024"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+```{r load_libraries, message=FALSE, warning=FALSE}
+library(fpp3)
+library(patchwork)
+library(lubridate)
+library(scales)
+library(stringr)
+library(forecast)
+options(scipen=999)
+data(aus_livestock)
+
+```
+
+# 8.1 Pigs from Victoria
+Consider the the number of pigs slaughtered in Victoria, available in the `aus_livestock` dataset.
+```{r}
+victoria = aus_livestock |>
+  filter(State == "Victoria" & Animal == "Pigs")
+```
+
+
+1. Use the `ETS()` function to estimate the equivalent model for simple exponential smoothing. Find the optimal values of α and ℓ0  and generate forecasts for the next four months.
+
+*Easy enough, but I spent all my time trying to get the l0 value extracted so I could print it.*
+
+```{r sec81a}
+
+v_output <- capture.output(victoria 
+  |> model(ETS(Count)) 
+  |> report()
+)
+
+model_line <- trimws(v_output[grep("Model:", v_output)])
+alpha_line <- trimws(v_output[grep("alpha =", v_output)])
+l0_index <- grep("l\\[0\\]", v_output)
+trimmed_l0_line <- trimws(v_output[l0_index + 1])
+split_l0_line <- strsplit(trimmed_l0_line, " ")[[1]]
+split_l0_line <- split_l0_line[split_l0_line != ""]
+l0_value <- split_l0_line[1]
+sprintf("Model %s %s, l0 value = %s", model_line, alpha_line, l0_value)
+
+# No forcast out 8 intervals later.
+v_fit = victoria |> model(ETS(Count))
+v_forecasts =  v_fit |> forecast(h = 4)
+print(v_forecasts)
+```
+
+2. Compute a 95% prediction interval for the first forecast using yHat +- 1.96s where *s* is the standard deviation of the residuals. Compare your interval with the interval produced by R. 
+
+*This was way more tricky. Eventually I flipped back over to what I know, which is expanding dataframes with columns to the right, and the just filtering or showing what I wanted. That, to me, was way easier than trying to take stuff out of the dataframe and compare it to stuff in the dataframe.*
+
+```{r}
+# print(v_fit)
+# print(v_forecasts)
+
+alpha <- v_fit$`ETS(Count)`[[1]]$fit$par$estimate[1]
+l0 <- v_fit$`ETS(Count)`[[1]]$fit$states[1, "l"]
+l0_value <- l0$l[1]
+
+residuals_tibble = residuals(v_fit) |> as_tibble() 
+v_stdev  <- sd(residuals_tibble$.resid)
+
+# print(alpha)
+# print(l0_value)
+# print(v_standard_deviation)
+
+# this is for all forecasts, not just the first one.
+v_forecasts <- v_forecasts %>%
+  as_tibble() |> 
+  mutate(
+    variance = as.numeric(str_extract(as.character(Count), "(?<=, )\\d+")),
+    stdev = sqrt(variance),  
+    lower_b = .mean - 1.96 * stdev,
+    upper_b = .mean + 1.96 * stdev,
+    manual_lower_b = .mean - 1.96 * v_stdev,
+    man_upper_b = .mean + 1.96 * v_stdev
+  ) |>
+  select(-Animal, -State, -.model, -Month, -Count)
+
+print(v_forecasts[1, ])
+
+```
+
+
+# 8.5 Gaza Exports
+
+Data set `global_economy` contains the annual Exports from many countries. Select one country to analyse.
+
+
+```{r}
+gaza = global_economy |> 
+  filter(Country == "West Bank and Gaza" & Year >= 1996) |>
+  select(Exports)
+  
+```
+1.  Plot the Exports series and discuss the main features of the data.
+
+*There seems to be a slight upward trend since about 2010, but the ups and downs on the early 2.000's are clearly represented and are a result of geopolitical security developments in the region.*
+
+*I can't imagine what it's going to be this year, probably nothing at all.*
+
+```{r gaza_g1}
+gaza |>
+ autoplot () 
+```
+* Use an ETS(A,N,N) model to forecast the series, and plot the forecasts.
+```{r gaza_plot_fc}
+g1_model <- gaza |> 
+  model(ETS(Exports ~ error("A") + trend("N") + season("N"))) 
+g1_fc<- g1_model |> forecast(h = 4)
+g1_accuracy_results <- g1_model |> accuracy()
+g1_rmse <- round(g1_accuracy_results$RMSE, 3)
+g1_fc |> autoplot(gaza)
+```
+
+* Compute the RMSE values for the training data.
+```{r print_gaza_g1}
+sprintf("RMSE No Trend: %s", g1_rmse)
+```
+
+2. Compare the results to those from an ETS(A,A,N) model. (Remember that the trended model is using one more parameter than the simpler model.) Discuss the merits of the two forecasting methods for this data set.
+
+*The RMSE is lower for additive trend. And there does appear to be a trend. ETS(AAN) is a better model for this data set.*
+
+```{r gaza_g2}
+g2_model <- gaza |> 
+  model(ETS(Exports ~ error("A") + trend("A") + season("N"))) 
+g2_fc<- g2_model |> forecast(h = 4)
+g2_accuracy_results <- g2_model |> accuracy()
+g2_rmse <- round(g2_accuracy_results$RMSE, 3)
+sprintf("RMSE Additive Trend : %s", g2_rmse)
+
+```
+
+
+3. Compare the forecasts from both methods. Which do you think is best?
+
+*In this model, the fit of the ETS(AAN) model fits better than the ETS(ANN) model, so we expect ETS(AAN) to be more correct with our forecasts. That said, after forecasting them out, it looks like the ETS(AAN) is showing slightly higher exports than the ETS(ANN).*
+
+```{r show_gaza_forecasts}
+print(g1_fc)
+print(g2_fc)
+```
+
+4. Calculate a 95% prediction interval for the first forecast for each model, using the RMSE values and assuming normal errors. Compare your intervals with those produced using R.
+
+*It's simple to what we said above, the ETS(AAN) model shows a little higher of a set of bounds, and that's what we expect due to the trending nature of this data.* 
+
+```{r etsann_versus_etsaan}
+## ETS(ANN)
+g1_fc_expanded <- g1_fc |>
+  as_tibble() |>
+    mutate(
+    model="ETS(ANN)",
+    variance = as.numeric(str_extract(as.character(Exports), "(?<=, )\\d+")),
+    stdev = sqrt(variance),  
+    lower_b = .mean - 1.96 * stdev,
+    upper_b = .mean + 1.96 * stdev,
+    manual_lower_b = .mean - 1.96 * v_stdev,
+    man_upper_b = .mean + 1.96 * v_stdev
+  ) |>
+  select(-Exports, -.model)
+## ETS(AAN)
+g2_fc_expanded <- g2_fc |>
+  as_tibble() |>
+    mutate(
+    model="ETS(AAN)",
+    variance = as.numeric(str_extract(as.character(Exports), "(?<=, )\\d+")),
+    stdev = sqrt(variance),  
+    lower_b = .mean - 1.96 * stdev,
+    upper_b = .mean + 1.96 * stdev,
+    manual_lower_b = .mean - 1.96 * v_stdev,
+    man_upper_b = .mean + 1.96 * v_stdev
+  ) |>
+  select(-Exports, -.model)
+
+combined_rows <- bind_rows(
+  g1_fc_expanded |> slice(2),
+  g2_fc_expanded |> slice(2)
+)
+
+print(combined_rows)
+
+```
+
+
+# 8.6 Chinese GDP
+Forecast the Chinese GDP from the `global_economy` data set using an ETS model. Experiment with the various options in the `ETS(`) function to see how much the forecasts change with damped trend, or with a Box-Cox transformation. Try to develop an intuition of what each is doing to the forecasts.
+
+[Hint: use a relatively large value of h when forecasting, so you can clearly see the differences between the various options when plotting the forecasts.]
+
+*I am gaining two intuitions. Firstly, that overall it might be best to run ETS() in a way that you allow it to pick the model for you. In this case it was ETS(M,A,N). Secondly, dampening seems like the way to go. I'm not 100% sure how it works, but nothing goes on forever in a linear direction.* 
+
+```{r chinese_gdp, message=FALSE, warning=FALSE}
+china = global_economy |> 
+  filter(Country == "China") |>
+  mutate(gdp = GDP / 1e6) |> # to millions, a cool little trick!
+  mutate(gdp = round(gdp, 4)) |>
+  select(gdp) 
+
+c_fit <- china |>
+  model(ETS(gdp)) 
+c_fit_dampened <- china |>
+  model(ETS(gdp ~ error("M") + trend("Ad") + season("N")))
+# c_fit |> report() 
+# c_fit_dampened |> report() 
+
+c_forecast <- c_fit |> forecast(h = 50)
+c_forecast_dampened <- c_fit_dampened |> forecast(h = 50)
+
+# Combine forecasts for plotting
+combined_forecasts <- bind_rows(
+  c_forecast          %>% mutate(Model = "Without Damping"),
+  c_forecast_dampened %>% mutate(Model = "With Damping")
+) 
+
+ggplot() +
+  geom_line(data = china, aes(x = Year, y = gdp), color = "black", size = 1) +  # Actual data line
+  geom_line(data = combined_forecasts, aes(x = Year, y = .mean, color = Model)) + # Forecast lines
+  labs(title = "Comparison of ETS Forecasts",
+       subtitle = "With and Without Damped Trend",
+       x = "Year",
+       y = "GDP (millions)",
+       color = "Model") +
+  theme_minimal()
+```
+
+# 8.7 Australian Gas
+
+Find an ETS model for the Gas data from `aus_production` and forecast the next few years. Why is multiplicative seasonality necessary here? Experiment with making the trend damped. Does it improve the forecasts?
+
+*The first chart shows the ever-increasing seasonality of this data set, and that is the definitive look for what one should select multiplicative for in an ETS model. The next chart plots non-seasonal, seasonal, and seasonal dampened on top of each other. The ETS Dampened seems to follow the trend ot the eye, but the smallest RMSE is not from dampened, it's from ETS(MAM)*
+
+```{r prod_gas, message=FALSE, warning=FALSE}
+gas <- aus_production |>  select(Gas)
+
+g_fit <- gas |> model(ETS(Gas)) # ETS(M,A,M) is selected.
+g_fit_dampened  <- gas |> model(ETS(Gas ~ error("M") + trend("Ad") + season("M")))
+g_fit_no_season <- gas |> model(ETS(Gas ~ error("A") + trend("N") + season("N")))
+
+g_forecast <- g_fit |> forecast(h = 30)
+g_forecast_dampened <- g_fit_dampened |> forecast(h = 30)
+g_forecast_no_season <- g_fit_no_season |> forecast(h = 30)
+
+g_forecast_tbl <- g_forecast |> 
+  as_tibble() |> 
+  mutate(Type = "ETS with Seasonality")
+  
+g_forecast_dampened_tbl  <- g_forecast_dampened |>
+  as_tibble() |>
+  mutate(Type = "ETS Dampened")
+
+g_forecast_no_season_tbl <- g_forecast_no_season |> 
+  as_tibble() |> 
+  mutate(Type = "ETS without Seasonality")
+
+autoplot(gas) + labs(title="Gas seasonality - the perfect case for multiplicative")
+
+ggplot(gas, aes(x = Quarter, y = Gas)) +
+  geom_line(color = "black") +
+  geom_line(data = g_forecast_tbl, aes(x = Quarter, y = .mean, color = Type)) +
+  geom_line(data = g_forecast_dampened_tbl, aes(x = Quarter, y = .mean, color = Type)) +
+  geom_line(data = g_forecast_no_season_tbl, aes(x = Quarter, y = .mean, color = Type)) +
+  scale_color_manual(values = c(
+    "ETS with Seasonality" = "blue", 
+    "ETS without Seasonality" = "red",
+    "ETS Dampened" = "green"
+    )) +
+  labs(title = "Gas Production with and without Seasonality",
+       x = "Quarter",
+       y = "Gas Production",
+       color = "Forecast Type") +
+  theme_minimal()
+```
+
+# 8.8 Aus Retail
+
+Recall your retail time series data (from Exercise 7 in Section 2.10).
+
+```{r}
+# that was
+set.seed(12345678)
+retail_series <- aus_retail |>
+  filter(`Series ID` == sample(aus_retail$`Series ID`,1)) |>
+  select(Turnover)
+```
+1. Why is multiplicative seasonality necessary for this series?
+2. A quick autoplot shows that characteristic ever-increasing seasonality number of multiplicative seasonality in ETS models.* 
+```{r message=FALSE, warning=FALSE}
+retail_series |> autoplot() 
+```
+
+3. Apply Holt-Winters’ multiplicative method to the data. Experiment with making the trend damped.
+4. Compare the RMSE of the one-step forecasts from the two methods. Which do you prefer?
+
+*I prefer the one with the least error, that seems to be ETS(AAM)*
+
+```{r}
+fit <- retail_series |>
+  model(
+    multiplicat = ETS(Turnover ~ error("A") + trend("A")  + season("M")),
+    multip_damp = ETS(Turnover ~ error("A") + trend("Ad") + season("N")),
+    holt_winter = ETS(Turnover ~ error("A") + trend("A")  + season("A")),
+    holt_w_damp = ETS(Turnover ~ error("A") + trend("Ad") + season("A"))
+
+  )
+tidy(fit)
+accuracy(fit)
+
+```
+
+
+5. Check that the residuals from the best method look like white noise.
+
+*It looks like it, nothing stands out as a pattern, it's all just centered around zero.*
+```{r}
+augment(fit) |>
+ autoplot(.resid) 
+```
+
+6. Now find the test set RMSE, while training the model to the end of 2010. Can you beat the seasonal naïve approach from Exercise 7 in Section 5.11?
+
+*Assuming this is asking if ETS is better than SNAIVE. Yes, it appears it is!*
+
+```{r message=FALSE, warning=FALSE}
+set.seed(12345678)
+retail_series2 <- aus_retail |>
+  filter(`Series ID` == sample(aus_retail$`Series ID`,1)) |>
+  select(Turnover) |>
+  filter(as.Date(Month) < as.Date("2010-01-01"))  
+
+fit_retail2 <- retail_series2 |>
+  model(
+     multiplicative  = ETS(Turnover ~ error("A") + trend("A")  + season("M")),
+     snaive = SNAIVE(Turnover)
+  )
+accuracy(fit_retail2)
+```
+
+# 8.9 More Aus Retail
+
+For the same retail data, try an STL decomposition applied to the Box-Cox transformed series, followed by ETS on the seasonally adjusted data. How does that compare with your best previous forecasts on the test set?
+
+*If I did this right, all the means on box cox are 11.7, while the means on ETS are between 9 and 14. The BoxCox like the same thing as a Naive plot.* 
+
+```{r message=FALSE, warning=FALSE}
+set.seed(12345678)
+
+## our best performing model for aus_retail, ETS(M,A,M)
+retail_series3 <- aus_retail |>
+  filter(`Series ID` == sample(aus_retail$`Series ID`,1)) |>
+  select(Turnover) |>
+  filter(as.Date(Month) < as.Date("2010-01-01"))  
+fit3 <- retail_series3 |> model(ETS(Turnover)) 
+r_forecast3  <- fit3 |> forecast(h ="2 years")
+
+## Now let's box cox our turnover column.
+lambda <- BoxCox.lambda(retail_series3$Turnover)
+retail_series3 <- retail_series3 |>
+  mutate(Turnover_transformed = BoxCox(Turnover, lambda))
+## create the model.
+stl_fit <- retail_series3 |>
+  model(
+    stl_bc = STL(Turnover_transformed ~ season(window = "periodic"))
+  )
+# Seems strange, bu supposedly the seasonally adjusted series is often 
+# computed by subtracting the seasonal component from the original series
+stl_components <- stl_fit %>%
+  components() %>%
+  mutate(Season_adjust = Turnover_transformed - season_year) |>
+  rename(model_name = .model)
+
+# now fit an ETS model on this seasonally adjusted column
+ets_fit_on_sa <- model(stl_components, 
+                       ets = ETS(Season_adjust ~ error("A") + trend("N") + season("N")))
+# and forecast
+forecast_ets_on_sa <- forecast(ets_fit_on_sa, h = "2 years")
+# invert back to original scale. 
+forecast_ets_on_sa_inverted <- forecast_ets_on_sa %>%
+  mutate(Mean = InvBoxCox(.mean, lambda))
+
+# and compare
+r_forecast3 
+forecast_ets_on_sa_inverted
+```
+
+*That seems odd, let's plot it!*
+
+```{r nowWePlot}
+
+# now let's plot.  
+
+retail_series3_plot <- retail_series3 |>
+  as_tibble() |>
+  select(Month, Turnover)
+
+r_forecast3_plot <- r_forecast3 |>
+  as_tibble()|>
+  mutate(Model = "ETS(M,A,M)")
+
+
+forecast_ets_on_sa_inverted_plot <- forecast_ets_on_sa_inverted |>
+  as_tibble() |>
+  mutate(Model = "ETS on Seasonally Adjusted Data")
+
+# Bind all data together
+combined_data <- bind_rows(
+  retail_series3_plot |> mutate(Model = "Original Data"),
+  r_forecast3_plot %>% select(Month, Turnover = .mean, Model),
+  forecast_ets_on_sa_inverted_plot %>% select(Month, Turnover = Mean, Model)
+)
+
+# Plot using ggplot
+ggplot(combined_data, aes(x = Month, y = Turnover, color = Model)) +
+  geom_line() +
+  labs(title = "Retail Turnover Forecast Comparison", x = "Month", y = "Turnover") +
+  scale_color_manual(values = c("Original Data" = "black", 
+                                "ETS(M,A,M)" = "blue", 
+                                "ETS on Seasonally Adjusted Data" = "red")) +
+  theme_minimal()
+```
