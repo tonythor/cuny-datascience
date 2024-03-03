@@ -5,6 +5,11 @@ Assignment #6
 3. Unless explicitly stated, please do not import any additional libraries but feel free to use built-in Python packages
 4. Submissions must be a Python file and not a notebook file (i.e *.ipynb)
 5. Do not use global variables
+
+https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data602-advpy/src/assignments/6_data/data.csv
+https://github.com/tonythor/cuny-datascience/raw/develop/data602-advpy/src/assignments/6_data/data.xlsx
+
+
 '''
 
 import pandas as pd
@@ -16,7 +21,11 @@ def exercise01():
     Fill the DataFrame with arbitrary data.
     '''
     # ------ Place code below here \/ \/ \/ ------
-    
+    df1 = pd.DataFrame({
+        "names": ["Tony", "Jaime", "Santor", "Josephius", "Rich"],
+        "adjectives": ["Coach", "MightyMouse", "Partner", "Tall", "Beast"]
+    })
+
     # ------ Place code above here /\ /\ /\ ------
     return df1
 
@@ -26,7 +35,8 @@ def exercise02():
     The dataset contains columns 'id', 'name', 'value'. Print the first 5 rows as part of the exercise.
     '''
     # ------ Place code below here \/ \/ \/ ------
-   
+    df2 = pd.read_csv("https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data602-advpy/src/assignments/6_data/data.csv")
+    print(df2.head(5))
     # ------ Place code above here /\ /\ /\ ------
     return df2
 
@@ -35,7 +45,7 @@ def exercise03(df):
     Given a DataFrame 'df', filter out and return a new DataFrame containing only the rows where 'value' is greater than 50.
     '''
     # ------ Place code below here \/ \/ \/ ------
-    
+    filtered_df = df[df["value"] >= 50]
     # ------ Place code above here /\ /\ /\ ------
     return filtered_df
 
@@ -46,6 +56,10 @@ def exercise04():
     Each dictionary represents a row, with 'city' and 'data' as keys.
     '''
     # ------ Place code below here \/ \/ \/ ------
+    df4 = pd.DataFrame({
+        "city": ["NewYork", "LosAngeles", "VegasBaby"],
+        "data": ["NightLife", "Surfing", "RockClimbing"]
+    })
 
     # ------ Place code above here /\ /\ /\ ------
     return df4
@@ -66,16 +80,16 @@ def exercise06():
     Assume the Excel file has columns 'A', 'B', 'C'. Return the DataFrame.
     '''
     # ------ Place code below here \/ \/ \/ ------
-    
+    df6 = pd.read_excel("https://github.com/tonythor/cuny-datascience/raw/develop/data602-advpy/src/assignments/6_data/dataEx6.xlsx")
     # ------ Place code above here /\ /\ /\ ------
     return df6
 
-def exercise07(df):
+def exercise07(df: pd.DataFrame):
     '''
     Given a DataFrame 'df', drop any rows that have missing values and return the cleaned DataFrame.
     '''
     # ------ Place code below here \/ \/ \/ ------
-    
+    cleaned_df = df.dropna() 
     # ------ Place code above here /\ /\ /\ ------
     return cleaned_df
 
