@@ -6,10 +6,6 @@ Assignment #6
 4. Submissions must be a Python file and not a notebook file (i.e *.ipynb)
 5. Do not use global variables
 
-https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data602-advpy/src/assignments/6_data/data.csv
-https://github.com/tonythor/cuny-datascience/raw/develop/data602-advpy/src/assignments/6_data/data.xlsx
-
-
 '''
 
 import pandas as pd
@@ -22,8 +18,8 @@ def exercise01():
     '''
     # ------ Place code below here \/ \/ \/ ------
     df1 = pd.DataFrame({
-        "names": ["Tony", "Jaime", "Santor", "Josephius", "Rich"],
-        "adjectives": ["Coach", "MightyMouse", "Partner", "Tall", "Beast"]
+        "Name": ["Tony", "Jaime", "Santor", "Josephius", "Rich"],
+        "Age": ["Coach", "MightyMouse", "Partner", "Tall", "Beast"]
     })
 
     # ------ Place code above here /\ /\ /\ ------
@@ -40,7 +36,7 @@ def exercise02():
     # ------ Place code above here /\ /\ /\ ------
     return df2
 
-def exercise03(df):
+def exercise03(df: pd.DataFrame):
     '''
     Given a DataFrame 'df', filter out and return a new DataFrame containing only the rows where 'value' is greater than 50.
     '''
@@ -65,7 +61,7 @@ def exercise04():
     return df4
 
 
-def exercise05(df):
+def exercise05(df: pd.DataFrame):
     '''
     Given a DataFrame 'df', add a new column 'data_squared' that contains the square of the 'data' column values.
     '''
@@ -93,51 +89,59 @@ def exercise07(df: pd.DataFrame):
     # ------ Place code above here /\ /\ /\ ------
     return cleaned_df
 
-def exercise08(df, column_name):
+def exercise08(df: pd.DataFrame, column_name: str):
     '''
     Given a DataFrame 'df' and a 'column_name' as a string, return the average value of that column.
     '''
     # ------ Place code below here \/ \/ \/ ------
-    
+    avg_value= df[column_name].mean()
     # ------ Place code above here /\ /\ /\ ------
     return avg_value
 
 class TestAssignment(unittest.TestCase):
     def test_exercise01(self):
+        print('Testing exercise 1')
         df = exercise01()
         self.assertEqual(df.shape, (5, 2))
         self.assertTrue('Name' in df.columns and 'Age' in df.columns)
 
     def test_exercise02(self):
+        print('Testing exercise 2')
         df = exercise02()
         self.assertTrue('id' in df.columns and 'name' in df.columns and 'value' in df.columns)
 
     def test_exercise03(self):
+        print('Testing exercise 3')
         df = pd.DataFrame({'id': [1, 2, 3], 'name': ['A', 'B', 'C'], 'value': [45, 55, 65]})
         df = exercise03(df)
         self.assertEqual(df.shape[0], 2)  
 
     def test_exercise04(self):
+        print('Testing exercise 4')
         df4 = exercise04()
         self.assertTrue(set(df4.columns) == {"city", "data"})
         self.assertEqual(len(df4), 3)
 
     def test_exercise05(self):
+       print('Testing exercise 5')
        df = pd.DataFrame({'city': ['A', 'B', 'C'], 'data': [1, 2, 3]})
        df = exercise05(df)
        self.assertTrue('data_squared' in df.columns)
        self.assertEqual(list(df['data_squared']), [1, 4, 9])
 
     def test_exercise06(self):
+       print('Testing exercise 6')
        df = exercise06()
        self.assertTrue('A' in df.columns and 'B' in df.columns and 'C' in df.columns)
 
     def test_exercise07(self):
+       print('Testing exercise 7')
        df = pd.DataFrame({'A': [1, 2, None, 4], 'B': [None, 2, 3, 4]})
        df = exercise07(df)
        self.assertEqual(df.shape[0], 2)  
 
     def test_exercise08(self):
+       print('Testing exercise 8')
        df = pd.DataFrame({'A': [10, 20, 30], 'B': [20, 30, 40]})
        avg_A = exercise08(df, 'A')
        avg_B = exercise08(df, 'B')
@@ -146,4 +150,3 @@ class TestAssignment(unittest.TestCase):
 
 if __name__ == '__main__':
    unittest.main()
-

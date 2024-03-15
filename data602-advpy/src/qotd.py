@@ -273,3 +273,19 @@ dtype: bool
 
 
 """
+
+
+# 1. What is pandas and why use it?
+
+# 2. Give an example of how to import a csv file using pandas
+# use the read_csv method.
+df = pd.data_frame() 
+
+# 3. Show how to view the first 10 rows of a dataset using pandas
+
+# 4. Write a Pandas program to compare the elements of the two Pandas Series.
+# Sample Series: [2, 4, 6, 8, 10], [1, 3, 5, 7, 10]
+
+# 5. Change the first character of each word to upper case in each word of df1
+# df1 = pd.Series(['hello', 'to', 'cuny', 'class?'])
+
