@@ -1,5 +1,5 @@
 ---
-title: "Hyndman Chapter 9 Homework"
+title: "Hyndman Chapter 9 Homework (ARIMA)"
 author: "By Tony Fraser"
 date: "X Mar 2024"
 format:
