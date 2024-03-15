@@ -1,0 +1,461 @@
+---
+title: "Hyndman Chapter 9 Homework"
+author: "By Tony Fraser"
+date: "X Mar 2024"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+```{r load_libraries, message=FALSE, warning=FALSE}
+library(fpp3)
+library(patchwork)
+library(lubridate)
+library(scales)
+library(stringr)
+library(forecast)
+options(scipen=999)
+library(tsibble)
+library(ggplot2)
+library(feasts)
+library(forecast)
+library(ggfortify)
+library(fable)
+library(dplyr)
+library(tsibble)
+```
+
+
+# 9.1 Random Numbers
+Figure 9.32 shows the ACFs for 36 random numbers, 360 random numbers and 1,000 random numbers.
+
+![](./initfigures.png)
+
+1. Explain the differences among these figures. Do they all indicate that the data are white noise?
+
+*All three of these charts are within the confidence bounds. They are no significant autocorrelations at any lag, therefore they are most likely white noise. To be totally certain, it might be wise to perform a Ljung-Box on each data set.* 
+
+2. Why are the critical values at different distances from the mean of zero? Why are the autocorrelations different in each figure when they each refer to white noise?
+
+*PCF Values are closer to zero with larger sample sizes due to more precise estimates. White noise varies randomly, but is expected to be within bounds but without specific patterns.*
+
+
+# 9.2 Gafa Stock ACF/PACF
+A classic example of a non-stationary series are stock prices. Plot the daily closing prices for Amazon stock (contained in `gafa_stock`), along with the ACF and PACF. Explain how each plot shows that the series is non-stationary and should be differenced.
+
+*All charts show the need to difference. The first chart shows obvious trending and increasing variance. The ACF show strong correlation between each point, well outside of confidence. This indicates past values have a strong influence on future values.  And the third shows an autoregressive order one relationship, where the most significant determinant is the record before.*
+
+```{r gafa_acf_pacf, message=FALSE, warning=FALSE, fig.width=9}
+
+amz <- gafa_stock |>
+  filter(Symbol == "AMZN", year(Date) == 2018) |>
+  select(Close)
+gg_tsdisplay(amz, plot_type="partial")
+
+```
+
+# 9.3 Box Cox and Stationary
+For the following series, find an appropriate Box-Cox transformation and order of differencing in order to obtain stationary data.
+
+1. Turkish GDP from `global_economy`
+
+*This was fairly straight forward, a log to stabilize variance, and then a difference to adjust the trend. It's annual data, so there is no seasonality.* 
+
+```{r turkey_pcf_acf, message=FALSE, warning=FALSE, fig.width=9}
+tur <- global_economy |>
+  filter(Code == "TUR") |>
+  select(GDP)
+
+tur |> autoplot(GDP / 1e6) +
+labs(y = "GDP Million USD", title ="Turkish GDP")
+tur |> gg_tsdisplay(difference(log(GDP)), plot_type="partial")
+
+```
+2. Accommodation takings in the state of Tasmania from `aus_accommodation`
+
+*It seems like differencing first for trend, and then for seasonality makes this this data mostly stationary.*
+```{r aus_accom, message=FALSE, warning=FALSE, fig.width=9}
+tas <- aus_accommodation |> 
+  filter(State == "Tasmania") |>
+  select(Takings)
+
+tas |> autoplot()  +
+  labs(y = "Millions of Australian Dollars ", title ="Tasmanian tourist takings")
+
+tas |> gg_tsdisplay(difference(difference(log(Takings)), lag = 4), plot_type="partial")
+
+```
+
+3. Monthly sales from `souvenirs`
+*Like accommodation, it seems like differencing first for trend and then for monthly seasonality is good enough.* 
+
+```{r souvenirs, message=FALSE, warning=FALSE, fig.width=9}
+souvenirs |> autoplot() 
+souvenirs |> gg_tsdisplay(difference(difference(log(Sales)), lag = 12), plot_type="partial")
+```
+
+# 9.5 Retail
+For your retail data (from Exercise 7 in Section 2.10), find the appropriate order of differencing (after transformation if necessary) to obtain stationary data.
+
+*I tried using difference(log()) and even difference(difference(log())) but that didn't seem to remove the seasonality. Then I tried STL and that seemed to get a lot closer. Given this is retail data, it makes sense to me to use the model that splits out seasonality.*
+
+*Also, I spent a ridiculous amount of time on this problem, and to no educational benefit. The complexity had nothing to do with the question "find how to difference and make stationary, " no, it was this tsibble not being compatible with gg_tsdisplay. This topic of making data into tsibbles should be less glossed over.*
+
+```{r}
+
+set.seed(12345678)
+
+myseries <- aus_retail %>%
+  filter(`Series ID` == sample(unique(aus_retail$`Series ID`), 1)) %>%
+  select(Turnover, Month) %>%
+  mutate(Month = ymd(paste0(Month, "-01"))) %>%
+  arrange(Month)
+
+myseries_ts <- ts(myseries$Turnover, frequency = 12, start = c(year(min(myseries$Month)), month(min(myseries$Month))))
+
+# Log transformation to stabilize variance
+myseries_log <- log(myseries_ts)
+
+myseries_stl <- stl(myseries_log, s.window = "periodic", robust = TRUE)
+remainder_ts <- ts(myseries_stl$time.series[, "remainder"], frequency = 12)
+
+remainder_ts <- na.omit(remainder_ts)
+
+autoplot(myseries_stl)
+autoplot(Acf(remainder_ts), colour = "blue")
+autoplot(Pacf(remainder_ts), colour = "blue")
+
+```
+
+# 9.6 Simulate ARIMA
+Simulate and plot some data from simple ARIMA models.
+
+1. Use the following R code to generate data from an AR(1) model with  
+`ϕ1 = 0.6`  and  `σ2 = 1`. The process starts with  `y1 = 0`.
+
+```{r}
+set.seed(12345678)
+n <- 100
+y <- numeric(n)
+e <- rnorm(n)
+for (i in 2:n) {
+  y[i] <- 0.6 * y[i - 1] + e[i]
+}
+simulated_df <- data.frame(index = 1:n, y = y)
+simulated_data <- as_tsibble(simulated_df, index = index)
+
+fit <- simulated_data |>
+  model(
+    ARIMA(y ~ PDQ(0,0,0))
+  )
+# fit |> report()
+
+plot(simulated_data$index, 
+  simulated_data$y, type = 'l', 
+  main = 'Simulated Data', 
+  xlab = 'Time', ylab = 'Value')
+
+```
+2. Produce a time plot for the series. How does the plot change as you change  
+`ϕ1`?
+
+*This produces a random walk. Cool.* 
+
+```{r}
+set.seed(12345678)
+n <- 100
+y <- numeric(n)
+e <- rnorm(n)
+for (i in 2:n) {
+  y[i] <- 1 * y[i - 1] + e[i]
+}
+simulated_df <- data.frame(index = 1:n, y = y)
+simulated_data <- as_tsibble(simulated_df, index = index)
+
+fit <- simulated_data |>
+  model(
+    ARIMA(y ~ PDQ(0,0,0))
+  )
+
+# fit |> report()
+
+plot(simulated_data$index, 
+  simulated_data$y, type = 'l', 
+  main = 'Simulated Data', 
+  xlab = 'Time', ylab = 'Value')
+
+```
+
+
+3. Write your own code to generate data from an MA(1) model with  `θ1 = 0.6` and  `σ2 = 1`.
+
+
+```{r}
+set.seed(12345678)
+
+n <- 100
+theta1 <- .6
+y <- numeric(n)
+e <- rnorm(n)
+for (i in 2:n) {
+  y[i] <- e[i] + theta1 * e[i - 1]  
+}
+
+simulated_df <- data.frame(index = 1:n, y = y)
+simulated_data <- as_tsibble(simulated_df, index = index)
+
+fit <- simulated_data |>
+  model(
+    MA1 = ARIMA(y ~ PDQ(0,0,1))
+  )
+
+# fit |> report()
+
+fitted_values <- fit |>
+  augment() |>
+  as_tibble()
+
+```
+
+4. Produce a time plot for the series. How does the plot change as you change  `θ1`?
+
+*As theta gets closer to 1, the forecasting looks a lot closer to actual. When theta is zero, the forecast is a flat line at zero. At .6, the forecast line gets pretty close.*
+
+```{r}
+
+ggplot() +
+  geom_line(data = simulated_data, aes(x = index, y = y), color = 'blue') +
+  geom_line(data = fitted_values, aes(x = index, y = .fitted), color = 'red') +
+  labs(title = "Simulated (blue) with fitted (red)", x = "Index", y = "Value")
+
+```
+
+
+5. Generate data from an ARMA(1,1) model with  `ϕ1 = 0.6`, `θ1 = 0.6` and `σ2 = 1`.
+
+```{r}
+set.seed(12345678)
+
+# Simulate ARMA(1,1) model
+n <- 100
+phi1_arma11 <- 0.6
+theta1_arma11 <- 0.6
+y_arma11 <- e_arma11 <- rnorm(n)
+
+for (i in 2:n) {
+  e_arma11[i] <- rnorm(1)
+  y_arma11[i] <- phi1_arma11 * y_arma11[i - 1] + e_arma11[i] + theta1_arma11 * e_arma11[i - 1]
+}
+simulated_df_arma11 <- data.frame(index = 1:n, y = y_arma11) |> 
+  as_tsibble(index = index) 
+
+```
+
+6. Generate data from an AR(2) model with  `ϕ1=−0.8`, `ϕ2=0.3`, and `σ2=1`. (Note that these parameters will give a non-stationary series.)
+
+```{r}
+set.seed(12345678)
+n <- 100
+phi1_ar2 <- -0.8
+phi2_ar2 <- 0.3
+y_ar2 <- numeric(n)
+e_ar2 <- rnorm(n)  # Generate random errors
+
+# Set initial values for the series
+y_ar2[1] <- 0
+y_ar2[2] <- 0
+e_ar2[1] <- 0
+e_ar2[2] <- 0
+
+for (i in 3:n) {
+  y_ar2[i] <- phi1_ar2 * y_ar2[i - 1] + phi2_ar2 * y_ar2[i - 2] + e_ar2[i]
+}
+
+simulated_df_ar2 <- data.frame(index = 1:n, y = y_ar2) %>%
+  as_tsibble(index = index)
+```
+
+7. Graph the latter two series and compare them.
+
+*I hope this is right. I think those parameters for p2 are supposed to be stationary, even though the question says it won't be.*
+
+```{r}
+
+p1 <- ggplot(simulated_df_arma11, aes(x = index, y = y)) +
+  geom_line(colour = "blue") +
+  labs(title = "ARMA(1,1) Data", x = "Index", y = "Value")
+
+p2 <- ggplot(simulated_df_ar2, aes(x = index, y = y)) +
+  geom_line(colour = "blue") +
+  labs(title = "AR(2) Data", x = "Index", y = "Value")
+
+print(p1)
+print(p2)
+
+```
+
+# 9.7 Australian Air
+Consider `aus_airpassengers`, the total number of passengers (in millions) from Australian air carriers for the period 1970-2011.
+
+1. Use ARIMA() to find an appropriate ARIMA model. What model was selected. Check that the residuals look like white noise. Plot forecasts for the next 10 periods.
+
+*R selected ARIMA(0,2,1)*
+
+```{r}
+
+fit <- aus_airpassengers |> 
+model(
+  auto = ARIMA(Passengers)
+)
+# report (fit)
+gg_tsresiduals(fit)
+
+fit |> forecast(h=10) |> 
+  autoplot(aus_airpassengers) +
+    labs(title = "Australian Air Passengers", y = "People ")
+
+```
+
+2. Write the model in terms of the backshift operator.
+
+*ARIMA(0,2,1) is written as follows:* 
+
+$$
+Y_t - 2Y_{t-1} + Y_{t-2} = \varepsilon_t + \theta_1 \varepsilon_{t-1}
+$$
+
+*It looks like this in backshift notation.* 
+
+$$(1 - B)^2 Y_t = (1 + \theta_1 B) \varepsilon_t$$
+
+*Where:*
+
+- *\( Y_t \) is the time series at time \( t \)*
+- *\( B \) is the backshift operator, so that \( B Y_t = Y_{t-1} \)*
+- *\( \varepsilon_t \) is the error term at time \( t \)*
+- *\( \theta_1 \) is the parameter of the moving average term*
+
+3. Plot forecasts from an ARIMA(0,1,0) model with drift and compare these to part a.
+
+*drift has a constant on the end, like this: `ARIMA(Passengers ~ pdq(2, 1, 2) + 1)`*
+```{r}
+fit_with_drift <- aus_airpassengers |> 
+  model(
+    ARIMA(Passengers ~ pdq(0, 1, 0) + 1)
+  )
+
+fit_with_drift |> 
+  forecast(h=10) |> 
+  autoplot(aus_airpassengers) +
+  labs(title = "Australian Air Passengers with Drift", y = "People")
+```
+
+4. Plot forecasts from an ARIMA(2,1,2) model with drift and compare these to parts a and c Remove the constant and see what happens.
+
+*It won't run. FABLE seems to want that constant with 212.* 
+
+```{r}
+fit_with_drift2 <- aus_airpassengers |> 
+  model(
+    ARIMA(Passengers ~ pdq(2, 1, 2) + 1)
+  )
+
+fit_with_drift2 |> forecast(h=10) |> 
+  autoplot(aus_airpassengers) +
+  labs(title = "Australian Air Passengers with Drift", y = "People")
+```
+
+5. Plot forecasts from an ARIMA(0,2,1) model with a constant. What happens?
+
+*It tells me I shouldn't use the constant.*
+
+```{r}
+fit_with_constant <- aus_airpassengers |> 
+  model(
+    ARIMA(Passengers ~ pdq(0, 2, 1) + 1) #<- this constant, also 
+                                         #<- means include drift.
+  )
+fit_with_constant |> 
+  forecast(h=10) |> 
+  autoplot(aus_airpassengers) +
+  labs(title = "Australian Air Passengers with Constant", y = "People")
+```
+
+# 9.8 US GDP
+For the United States GDP series (from `global_economy`):
+
+1. If necessary, find a suitable Box-Cox transformation for the data;
+
+*It isn't seasonal. Difference(log) seems to a reasonable job at moving towards stationary enough to start modeling.*
+
+```{r, warning=FALSE} 
+usa <- global_economy |>
+  filter(Code == "USA") |>
+  mutate(gdpm = GDP / 1e6) |>
+  select(gdpm)
+
+usa |> autoplot(.vars = gdpm)
+usa |> gg_tsdisplay(difference(log(gdpm)), plot_type="partial")
+
+```
+
+2. Fit a suitable ARIMA model to the transformed data using ARIMA();
+
+*below* 
+
+3. Try some other plausible models by experimenting with the orders chosen;
+
+*below* 
+
+4. Choose what you think is the best model and check the residual diagnostics;
+
+*they are all pretty close, but the A021 is slightly better.*
+
+- *ARIMA(0,1,1) w/ drift: AICc = -262.49*
+
+- *ARIMA(1,1,0) w/ drift: AICc = -274.15* 
+
+- *ARIMA(0,2,1): AICc = -275.3*
+
+```{r}
+fit_us_gdp <- usa |> model (
+    ar011 = ARIMA(log(gdpm) ~ pdq(0, 1, 1)), # differenced
+    ar110 = ARIMA(log(gdpm) ~ pdq(1, 1, 0)), # differenced
+    aauto = ARIMA(log(gdpm))
+)
+
+fit_us_gdp |> select(ar011) |> report()
+fit_us_gdp |> select(ar110) |> report()
+fit_us_gdp |> select(aauto) |> report()
+
+```
+
+5. Produce forecasts of your fitted model. Do the forecasts look reasonable?
+
+*I think so. All three of the Arima models above look reasonable. This one seems to be a little more straight on the same track as the trend line.*
+
+```{r}
+fit_us_gdp |> select(aauto)  |> 
+  forecast(h="5 years") |> 
+  autoplot(usa) +
+   labs(title = "US GDP [Using ARIMA(021)]", y = "USD Millions")
+
+```
+
+6. compare the results with what you would obtain using ETS() (with no transformation).
+
+*The look pretty similar. Maybe the ARIMA grows a tiny bit faster and has slightly tighter confidence intervals, but either would work.* 
+
+```{r}
+fit_us_gdp_ets <- usa |> 
+  model(ETS(gdpm)) 
+
+fit_us_gdp_ets_forecast <- fit_us_gdp_ets |> 
+  forecast(h = "5 years") 
+
+autoplot(fit_us_gdp_ets_forecast) +
+  autolayer(usa, gdpm) +  # Adding the historical data as a layer
+  labs(title = "US GDP [Using ETS]", y = "USD Millions")
+```
+
