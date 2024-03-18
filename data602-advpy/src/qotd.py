@@ -289,3 +289,329 @@ df = pd.data_frame()
 # 5. Change the first character of each word to upper case in each word of df1
 # df1 = pd.Series(['hello', 'to', 'cuny', 'class?'])
 
+
+
+# 1. What is pandas and why use it?
+
+# According to the makers of Pandas, "Pandas is a fast, powerful, flexible and easy to use open source data analysis and manipulation tool,
+# built on top of the Python programming language." To me, it's one of the primary python columnar data store systems that many technologies build on top of. Many tools sit on to of Pandas, including Seaborn, Prophet, etc. 
+
+# 2. Give an example of how to import a csv file using pandas
+# 3. Show how to view the first 10 rows of a dataset using pandas
+In [1]: import pandas as pd
+   ...: usecols = ['Age', 'Citizenship', 'Position', 'Fate']
+   ...: lusitania = pd.read_csv("https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data/lusitania_manifest.csv", usecols=usecols)
+   ...: lusitania.head(10)
+Out[1]:
+    Fate   Age      Citizenship              Position
+0   Lost    38          British                   NaN
+1   Lost    37          British                   NaN
+2  Saved    30          British                Violin
+3  Saved    25          British                 Cello
+4  Saved    27          British           Double Bass
+5   Lost    48          British         Staff Captain
+6   Lost   NaN        Norwegian    Able-Bodied Seaman
+7  Saved   NaN  British (Irish)    Able-Bodied Seaman
+8  Saved    24  British (Irish)  Junior Third Officer
+9  Saved  19 ?          British    Able-Bodied Seaman
+
+
+# 4. Write a Pandas program to compare the elements of the two Pandas Series.
+In [3]: import pandas as pd
+   ...: def compare_series(series1, series2):
+   ...:     # Check if the series are of the same length
+   ...:     if len(series1) != len(series2):
+   ...:         return False
+   ...:     for elem1, elem2 in zip(series1, series2):
+   ...:         if elem1 != elem2:
+   ...:             return False
+   ...:     return True
+   ...:
+   ...: series1 = pd.Series([2, 4, 6, 8, 10])
+   ...: series2 = pd.Series([1, 3, 5, 7, 10])
+   ...: series3 = pd.Series([2, 4, 6, 8, 10])
+   ...: print(compare_series(series1, series2))
+   ...: print(compare_series(series1, series3))
+   ...:
+False
+True
+
+
+# 5. Change the first character of each word to upper case in each word of df1
+import pandas as pd
+df1 = pd.Series(['hello', 'to', 'cuny', 'class?'])
+df1 = df1.apply(lambda x: x.capitalize())
+print(df1)
+
+
+
+import pandas as pd
+usecols = ['Age', 'Citizenship', 'Position', 'Fate']
+lusitania = pd.read_csv("https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/data/lusitania_manifest.csv", usecols=usecols)
+lusitania.head(10)
+
+# Resetting the index (and dropping the old one)
+lusitania.reset_index(drop=True, inplace=True)
+# Dropping the  'Position' column
+lusitania.drop('Position', axis=1, inplace=True)
+# Deleting the first row (which has index 0 after resetting index)
+lusitania.drop(0, axis=0, inplace=True)
+# Display the modified DataFrame
+lusitania.head(10)
+
+
+# let's do some aggregations .
+band_members = ['Cello', 'Double Bass', 'Violin']
+
+
+kitchen_staff = ['Assistant Baker', 'Assistant Butcher', 'Assistant Cook', 'Assistant Matron', 
+                 'Assistant Pantry Steward', 'Chief Baker', 'Chief Butcher', 'Chef', 
+                 'Confectioner', 'Extra Chief Steward', 'Extra Extra Second Baker', 'Extra Extra Second Cook', 
+                 'Extra Fourth Baker', 'Extra Second Baker', 'Extra Second Cook', 'Extra Third Baker', 
+                 'Extra Third Cook', 'Extra Vegetable Cook', 'Fourth Baker', 'Grill Cook', 'Kitchen Porter', 
+                 'Larder Cook', "Night Fireman's Cook", 'Passenger Cook', 'Roast Cook', 'Sauce Cook', 
+                 'Scullion', 'Second Baker', 'Second Butcher', "Ship's Cook", 'Soup Cook', 'Stewardess', 
+                 'Third Baker', 'Third Butcher', 'Third Cook', 'Vegetable Cook']
+
+wait_staff = ['Assistant Deck Steward', 'Assistant Smokeroom Steward', 'Assistant Steward (Waiter)', 
+              'Barkeeper', 'Deck Steward', 'Deck Steward, Second Cabin', 'First Waiter', 
+              'First Waiter (Head Waiter)', 'Library Steward', 'Linenkeeper', 'Lounge Steward', 
+              'Night Watchman', 'Pantry Steward', 'Saloon Cabin Bed Steward', 'Saloon Steward', 
+              'Second Cabin Cabin Bed Steward', 'Second Steward', 'Second Waiter', 'Smokeroom Barkeeper', 
+              'Smokeroom Steward', "Steward's Boy", 'Third Waiter', 'Waiter']
+
+kitchen_staff = ['Assistant Baker', 'Assistant Butcher', 'Assistant Cook', 'Assistant Matron', 
+                 'Assistant Pantry Steward', 'Chief Baker', 'Chief Butcher', 'Chef', 
+                 'Confectioner', 'Extra Chief Steward', 'Extra Extra Second Baker', 'Extra Extra Second Cook', 
+                 'Extra Fourth Baker', 'Extra Second Baker', 'Extra Second Cook', 'Extra Third Baker', 
+                 'Extra Third Cook', 'Extra Vegetable Cook', 'Fourth Baker', 'Grill Cook', 'Kitchen Porter', 
+                 'Larder Cook', "Night Fireman's Cook", 'Passenger Cook', 'Roast Cook', 'Sauce Cook', 
+                 'Scullion', 'Second Baker', 'Second Butcher', "Ship's Cook", 'Soup Cook', 'Stewardess', 
+                 'Third Baker', 'Third Butcher', 'Third Cook', 'Vegetable Cook']
+
+ship_crew = ['Able-Bodied Seaman', 'Captain', 'Chief Officer', 'First Officer', 
+             'Fireman', 'Junior Third Officer', 'Leading Fireman', 'O Seaman', 
+             'Purser', 'Second Officer', 'Senior Third Officer', 'Seaman', 
+             'Staff Captain', 'Telegraphist', 'Assistant Telegraphist']
+
+maintenance_staff = ['Baggage Master', 'Boatswain', "Boatswain's Boy", "Boatswain's Mate", 
+                     'Carpenter', 'Donkeyman', 'Electric Attendant', 'Engineering Storekeeper', 
+                     'Greaser', 'Inspector', 'Joiner', 'Junior 4th Engineer', 'Junior 5th Engineer', 
+                     'Junior 6th Engineer', 'Junior 7th Engineer', 'Master-at-Arms', 'Plumber', 
+                     'Refrigeration Greaser', 'Senior Boilermaker', 'Steering Engineer', 
+                     'Trimmer', 'Trimmer (promoted to Fireman)', 'Ventilation Engineer']
+
+engineering_technical_staff = ['Chief Electrician', 'Chief Engineer', 'First Intermediate 3rd Engineer', 
+                               'First Junior 3rd Engineer', 'First Senior 3rd Engineer', 
+                               'Intermediate 2nd Engineer', 'Intermediate 5th Engineer', 
+                               'Intermediate 6th Engineer', 'Second Electrician', 'Second Intermediate 3rd Engineer', 
+                               'Senior 2nd Engineer', 'Senior 4th Engineer', 'Senior 5th Engineer', 
+                               'Senior 6th Engineer', 'Senior 7th Engineer', 'Second Senior 3rd Engineer', 
+                               'Third Electrician', 'Third Junior 3rd Engineer', 'Third Senior 3rd Engineer']
+
+
+navigation_staff = ['Deck Engineer', 'First Officer', 'Junior Third Officer', 'Second Officer', 
+                    'Senior Third Officer', 'Staff Captain']
+
+
+general_services = ['Barber', 'Boots Steward', 'Cellarman', 'Deck Steward, Second Cabin', 
+                    'Library Steward', 'Linenkeeper', 'Lounge Steward', 'Pantry Steward', 
+                    'Smokeroom Barkeeper', 'Smokeroom Steward', 'Typist']
+
+
+
+
+kitchen_staff = [
+    "Assistant Baker",
+    "Assistant Butcher",
+    "Assistant Cook",
+    "Assistant Matron",
+    "Assistant Pantry Steward",
+    "Chief Baker",
+    "Chief Butcher",
+    "Chef",
+    "Confectioner",
+    "Extra Chief Steward",
+    "Extra Extra Second Baker",
+    "Extra Extra Second Cook",
+    "Extra Fourth Baker",
+    "Extra Second Baker",
+    "Extra Second Cook",
+    "Extra Third Baker",
+    "Extra Third Cook",
+    "Extra Vegetable Cook",
+    "Fourth Baker",
+    "Grill Cook",
+    "Kitchen Porter",
+    "Larder Cook",
+    "Night Fireman's Cook",
+    "Passenger Cook",
+    "Roast Cook",
+    "Sauce Cook",
+    "Scullion",
+    "Second Baker",
+    "Second Butcher",
+    "Ship's Cook",
+    "Soup Cook",
+    "Stewardess",
+    "Third Baker",
+    "Third Butcher",
+    "Third Cook",
+    "Vegetable Cook",
+]
+
+wait_staff = [
+    "Assistant Deck Steward",
+    "Assistant Smokeroom Steward",
+    "Assistant Steward (Waiter)",
+    "Barkeeper",
+    "Deck Steward",
+    "Deck Steward, Second Cabin",
+    "First Waiter",
+    "First Waiter (Head Waiter)",
+    "Library Steward",
+    "Linenkeeper",
+    "Lounge Steward",
+    "Night Watchman",
+    "Pantry Steward",
+    "Saloon Cabin Bed Steward",
+    "Saloon Steward",
+    "Second Cabin Cabin Bed Steward",
+    "Second Steward",
+    "Second Waiter",
+    "Smokeroom Barkeeper",
+    "Smokeroom Steward",
+    "Steward's Boy",
+    "Third Waiter",
+    "Waiter",
+]
+
+kitchen_staff = [
+    "Assistant Baker",
+    "Assistant Butcher",
+    "Assistant Cook",
+    "Assistant Matron",
+    "Assistant Pantry Steward",
+    "Chief Baker",
+    "Chief Butcher",
+    "Chef",
+    "Confectioner",
+    "Extra Chief Steward",
+    "Extra Extra Second Baker",
+    "Extra Extra Second Cook",
+    "Extra Fourth Baker",
+    "Extra Second Baker",
+    "Extra Second Cook",
+    "Extra Third Baker",
+    "Extra Third Cook",
+    "Extra Vegetable Cook",
+    "Fourth Baker",
+    "Grill Cook",
+    "Kitchen Porter",
+    "Larder Cook",
+    "Night Fireman's Cook",
+    "Passenger Cook",
+    "Roast Cook",
+    "Sauce Cook",
+    "Scullion",
+    "Second Baker",
+    "Second Butcher",
+    "Ship's Cook",
+    "Soup Cook",
+    "Stewardess",
+    "Third Baker",
+    "Third Butcher",
+    "Third Cook",
+    "Vegetable Cook",
+]
+
+ship_crew = [
+    "Able-Bodied Seaman",
+    "Captain",
+    "Chief Officer",
+    "First Officer",
+    "Fireman",
+    "Junior Third Officer",
+    "Leading Fireman",
+    "O Seaman",
+    "Purser",
+    "Second Officer",
+    "Senior Third Officer",
+    "Seaman",
+    "Staff Captain",
+    "Telegraphist",
+    "Assistant Telegraphist",
+]
+
+maintenance_staff = [
+    "Baggage Master",
+    "Boatswain",
+    "Boatswain's Boy",
+    "Boatswain's Mate",
+    "Carpenter",
+    "Donkeyman",
+    "Electric Attendant",
+    "Engineering Storekeeper",
+    "Greaser",
+    "Inspector",
+    "Joiner",
+    "Junior 4th Engineer",
+    "Junior 5th Engineer",
+    "Junior 6th Engineer",
+    "Junior 7th Engineer",
+    "Master-at-Arms",
+    "Plumber",
+    "Refrigeration Greaser",
+    "Senior Boilermaker",
+    "Steering Engineer",
+    "Trimmer",
+    "Trimmer (promoted to Fireman)",
+    "Ventilation Engineer",
+]
+
+engineering_technical_staff = [
+    "Chief Electrician",
+    "Chief Engineer",
+    "First Intermediate 3rd Engineer",
+    "First Junior 3rd Engineer",
+    "First Senior 3rd Engineer",
+    "Intermediate 2nd Engineer",
+    "Intermediate 5th Engineer",
+    "Intermediate 6th Engineer",
+    "Second Electrician",
+    "Second Intermediate 3rd Engineer",
+    "Senior 2nd Engineer",
+    "Senior 4th Engineer",
+    "Senior 5th Engineer",
+    "Senior 6th Engineer",
+    "Senior 7th Engineer",
+    "Second Senior 3rd Engineer",
+    "Third Electrician",
+    "Third Junior 3rd Engineer",
+    "Third Senior 3rd Engineer",
+]
+
+
+navigation_staff = [
+    "Deck Engineer",
+    "First Officer",
+    "Junior Third Officer",
+    "Second Officer",
+    "Senior Third Officer",
+    "Staff Captain",
+]
+
+
+general_services = [
+    "Barber",
+    "Boots Steward",
+    "Cellarman",
+    "Deck Steward, Second Cabin",
+    "Library Steward",
+    "Linenkeeper",
+    "Lounge Steward",
+    "Pantry Steward",
+    "Smokeroom Barkeeper",
+    "Smokeroom Steward",
+    "Typist",
+]

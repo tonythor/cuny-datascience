@@ -14,5 +14,7 @@ matplotlib
 #plotly==5.13.1
 #icecream
 #statsmodels
-#seaborn
+jupyterlab
+seaborn
 openpyxl
+jupyter
