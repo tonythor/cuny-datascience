@@ -352,7 +352,23 @@ for alpha in alphas:
   # Fit the data
   ridge.fit(X_train, y_train)
   # Obtain R-squared
-  score = ridge.predict(X_test)
-  # y_pred = ridge.predict(X_test)
-  ridge_scores.append(score)
+  y_pred = ridge.predict(X_test)
+  ridge_scores.append(ridge.score(X_test,y_test))
 print(ridge_scores)
+
+
+### ////////////////// ####
+# Lasso regression for feature importance
+# Import Lasso
+from sklearn. linear_model import Lasso
+# Instantiate a lasso regression model
+lasso = Lasso(alpha=0.1)
+# Fit the model to the data
+lasso.fit(X, y)
+# Compute and print the coefficients
+# lasso_coef = ____
+lasso_coef = lasso.fit(X, y).coef_
+print(lasso_coef)
+plt.bar(sales_columns, lasso_coef)
+plt.xticks(rotation=45)
+plt.show()
