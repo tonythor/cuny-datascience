@@ -10,25 +10,323 @@ format:
 ---
 ```{r load_libraries, message=FALSE, warning=FALSE}
 library(fpp3)
+library(fable)
 library(patchwork)
-library(lubridate)
 library(scales)
 library(stringr)
 library(forecast)
-options(scipen=999)
-library(tsibble)
-library(ggplot2)
-library(feasts)
-library(forecast)
 library(ggfortify)
-library(fable)
-library(dplyr)
-library(tsibble)
+library(readxl)
+options(scipen=999)
+
+git_p1_data <- "https://github.com/tonythor/cuny-datascience/raw/develop/data624-predictive/project1/data/"
 ```
 
 # Part A – ATM Forecast
- In part A, I want you to forecast how much cash is taken out of 4 different ATM machines for May 2010.  The data is given in a single file.  The variable ‘Cash’ is provided in hundreds of dollars, other than that it is straight forward.   I am being somewhat ambiguous on purpose to make this have a little more business feeling.  Explain and demonstrate your process, techniques used and not used, and your actual forecast.  I am giving you data via an excel file, please provide your written report on your findings, visuals, discussion and your R code via an RPubs link along with the actual.rmd file  Also please submit the forecast which you will put in an Excel readable file.
+ *In part A, I want you to forecast how much cash is taken out of 4 different ATM machines for May 2010.  The data is given in a single file. The variable ‘Cash’ is provided in hundreds of dollars, other than that it is straight forward.  I am being somewhat ambiguous on purpose to make this have a little more business feeling.  Explain and demonstrate your process, techniques used and not used, and your actual forecast.  I am giving you data via an excel file, please provide your written report on your findings, visuals, discussion and your R code via an RPubs link along with the actual.rmd file  Also please submit the forecast which you will put in an Excel readable file.*
+
+
+## Data Exploration 
+
+### At first glance 
+
+* This is an excel file. There will be conversion, type and/or formatting issues. 
+* There are some malformed records in the spreadsheet. We're going to have to look into that. 
+* It's difficult to tell if we have every record for every day for every atm. We should look at that.
+* After loading the data into R, the date column is in epoch time. That needs to be converted. 
+
+Let's start with a chart.
+
+```{r initial_plot, fig.height=4, fig.width=9, warning=FALSE}
+file_url <- paste0(git_p1_data, "atm_624.xlsx")
+local_file_path <- "atm_624.xlsx"
+download.file(file_url, local_file_path, mode = "wb")
+atm_data <- read_excel(local_file_path)
+unlink(local_file_path)
+
+# immediately fix the date out of excel epoch time. 
+atm_data$DATE <- as.Date(atm_data$DATE, origin = "1899-12-30") 
+
+atm_tsibble <- as_tsibble(atm_data, index = DATE, key = ATM)
+
+ggplot(atm_tsibble, aes(x = DATE, y = Cash, color = ATM)) +
+  geom_line() +
+  labs(title = "ATM Cash Trend", x = "Date", y = "Cash") +
+  theme_minimal()
+
+
+```
+
+### Quick thoughts
+
+1. For a quick sanity check, let's consider this through the lens of transactions per minute. There are only 1440 minutes in the 24 hour period, maybe with a maximum throughput of 1 transaction per minute. Given the maximum most banks will let you withdraw at any one time (2,000$), and over a 24 hour period, a hasty theoretical maximum withdraw amount might be around $2,880,000. That spike ATM is: 11,000 hundred dollars, or $1,100,000, so perhaps theoretically that might be possible. 
+
+    Still though, 1.1M is: 
+
+* 55,000 twenty dollar bills
+* 2200 wrapped stacks of 20's 
+* A 19 feet tall stack of 20's, or a 4 foot tall stack of 100's
+
+    If that is a valid data point, then there were people unwrapping cash and feeding that ATM all day.
+
+2. One ATM is mich higher volume compared to the others, that's odd.
+
+3. After another quick look at this graph, it seems again like we should look for missing data.
+
+### Research Spikes 
+
+**Spike 1: What about the outlier?**
+
+Let's look at that spike and a couple of days before and and after, just to see.
+
+```{r blow_up_outlier, fig.height=5}
+atm_tsibble |>
+    filter(DATE >= as.Date("2010-02-07") & DATE <= as.Date("2010-02-14")) |>
+    ggplot(aes(x = DATE, y = Cash, color = ATM)) +
+        geom_line() +
+        labs(title = "ATM Withdrawals", x = "Date", y = "Withdraw Count") +
+        scale_x_date(date_breaks = "1 day", date_labels = "%a %b %d")
+```
+
+That spike is Tuesday the 9th of February. A quick Google search shows the Northeast United States experienced a [massive blizzard](https://en.wikipedia.org/wiki/February_9–10,_2010_North_American_blizzard) on the 9th and 10th. An event like that could cause that spike, and even explain how the next two days were so low traffic at ATM4. 
+
+Obviously, if this was a real world project, we'd need to verify that ATM's location was in the Northeast near the blizzard. Given this assignment, I suspect it was, and I suspect that's why that assignment contains this data set.
+
+**Decision 1: Smooth over the outlier**
+
+We'll smooth that over. We'll replace those storm records with an average of a few days before and after. And, well politely suggest to the bank if there is another storm, that they have two people on standby with a 15 foot stack of 20 dollar bills on hand.
+
+**Spike 2: How much data are we missing? What do we do?**
+
+For missing time series data, let's construct a dataframe with all the dates, and the left join everything together to make sure to account for each day atm combination. That's the one of the best ways I know to check every date in a time series. 
+
+```{r plot_missing, fig.height=4, message=FALSE, warning=FALSE}
+all_dates <- seq(min(atm_tsibble$DATE), max(atm_tsibble$DATE), by = "day")
+atm_tsibble <- atm_tsibble  |> filter(!is.na(ATM)) # this is for the date records with no atm or cash. 
+complete_atm_tibble <- expand.grid(DATE = all_dates, ATM = unique(atm_tsibble$ATM)) 
+complete_atm_tibble <- left_join(complete_atm_tibble, atm_tsibble, by = c("DATE", "ATM"))
+
+missing_data <- complete_atm_tibble %>%
+  filter(is.na(Cash) | Cash == 0)
+
+ggplot(missing_data, aes(x = DATE, y = ATM)) +
+  geom_point(aes(color = ATM), shape = 4) +  # Use shape 4 for X's
+  labs(title = "Missing ATM Records by Date",
+       x = "Date", y = "ATM") +
+  theme_minimal()
+
+# Show all the missing records
+complete_atm_tibble %>%
+  filter(ATM != "ATM3" & (is.na(Cash) | Cash == 0) & DATE < as.Date("2010-05-01"))
+
+```
+
+**Decision 2: Impute NA's in ATM 1 and 2** 
+
+Above, it looks like we're missing a couple of days worth of data (denoted as NA in the list of records, and x's on the chart.) As well we have a couple of days where cash delivered was zero in the record list above. Zero is to be expected, the ATM didn't give out any money that day. The NA's are missing records that were caught with the left join. 
+
+We'll impute those missing records as part of the plan.
+
+**Decision 3: Drop ATM3, suggest ATM3 is like ATM1** 
+
+ATM3 only dispensed cash for 2010-04-28, 2010-04-29, 2010-04-30. It isn't missing data, it just seems like it hasn't been giving cash.  Perhaps the ATM was stationed in a building under renovation, we don't know. Regardless, let's quickly look at those dates, and whichever other ATM seems the closest can be our recommendation for ATM3. 
+
+```{r fig.height=4}
+complete_atm_tibble |>
+  filter( DATE >= as.Date("2010-04-28") & DATE <= as.Date("2010-04-30") )
+```
+
+Perfect, ATM3 appears to be identical to ATM1 with respect to cash withdraw. We'll use ATM1 as a proxy for ATM3 in the final conclusion, though we have to remember to suggest actively monitoring ATM3's behavior until more data is collected. 
+
+## The Plan
+
+Let's organize the plan start to finish before we act.
+
+1. Wrangle: Remove all improperly formatted 2010-05 records from complete_atm_tibble.
+2. Wrangle: Remove ATM3 in `complete_atm_tibble`
+3. Wrangle: Smooth that outlier on ATM4 
+4. Wrangle: Impute using mean average in `complete_atm_tibble` where Cash is NA.
+5. Forecast: Forecast with STS and ARIMA
+6. Forecast: Sanity check
+7. Conclude: Suggest how much cash to have on hand per ATM 
+
+## Wrangle 
+```{r plan1_wrangle} 
+
+## remove improperly formatted records and ATM3
+complete_atm_tibble <- complete_atm_tibble |>
+    filter (ATM != "ATM3" & DATE < as.Date("2010-05-01"))
+
+## replace the outlier     
+date_to_replace <- complete_atm_tibble |>  filter(Cash >= 3000) |> pull(DATE) 
+s_date = date_to_replace - 9
+e_date = date_to_replace - 2
+average_cash <- complete_atm_tibble |>
+  filter(ATM == "ATM4", DATE >= s_date, DATE <= e_date) |>
+  summarize(Average_Cash = mean(Cash, na.rm = TRUE)) |>
+  pull(Average_Cash)
+complete_atm_tibble <- complete_atm_tibble |>
+ mutate(Cash = ifelse(DATE == date_to_replace & ATM == "ATM4", average_cash, Cash))
+  
+# double check that one date, Should be Feb 09 375$. 
+print(complete_atm_tibble |> filter(DATE == as.Date(date_to_replace) & ATM == "ATM4"))
+
+## Impute the three missing records for ATM1 and the two for ATM2 
+average_cash_per_atm <- complete_atm_tibble |>
+  group_by(ATM) |>
+  summarize(Average_Cash = mean(Cash, na.rm = TRUE))
+complete_atm_tibble <- complete_atm_tibble|>
+  left_join(average_cash_per_atm, by = "ATM") |>
+  mutate(Cash = ifelse(is.na(Cash), Average_Cash, Cash)) |>
+  select(-Average_Cash)
+
+## double check that imputation worked
+print(complete_atm_tibble %>%
+  filter((is.na(Cash) | Cash == 0) & DATE < as.Date("2010-05-01"))) 
+```
+
+We'll plot those two charts again to be sure. The outlier is gone and there is no missing data.
+
+```{r}
+## now let's plot those charts again! 
+
+p1 <- ggplot(complete_atm_tibble, aes(x = DATE, y = Cash, color = ATM)) +
+  geom_line() +
+  labs(title = "ATM Cash Trend", x = "Date", y = "Cash") +
+  theme_minimal()
+
+p2 <- ggplot(complete_atm_tibble |> filter(is.na(Cash)), aes(x = DATE, y = ATM)) +
+  geom_point(aes(color = ATM), shape = 4) +  # Use shape 4 for X's
+  labs(title = "Missing ATM Records by Date",
+       x = "Date", y = "ATM")
+
+(p1 + p2)
+
+```
+
+That's perfect.
+
+## Model Selection
+
+Before we start forecasting, we'll decompose this to help us review trend and seasonality. This will help us select a model. 
+
+
+```{r autoplot_show_seasonality, fig.height=9, fig.width=9}
+atm1_tsibble <- as_tsibble(complete_atm_tibble |> filter(ATM == "ATM1") , index = DATE)
+atm1_stl_fit <- atm1_tsibble |>  model(STL(Cash ~ season(window = "periodic")))
+atm1_components <- atm1_stl_fit |>  components() 
+
+atm2_tsibble <- as_tsibble(complete_atm_tibble |> filter(ATM == "ATM2") , index = DATE)
+atm2_stl_fit <- atm2_tsibble |>  model(STL(Cash ~ season(window = "periodic")))
+atm2_components <- atm2_stl_fit |>  components() 
+
+atm4_tsibble <- as_tsibble(complete_atm_tibble |> filter(ATM == "ATM4") , index = DATE)
+atm4_stl_fit <- atm4_tsibble |>  model(STL(Cash ~ season(window = "periodic")))
+atm4_components <- atm4_stl_fit |>  components() 
+
+pa1 <- autoplot(atm1_components)
+pa2 <- autoplot(atm2_components)
+pa4 <- autoplot(atm4_components)
+(pa1 + pa2 + pa4)
+
+```
+
+Above we can see considerable weekly seasonality. ETS and SARIMA are both likely choices for good forecasting models.
+
+If we compare ETS adn SARIMA across all three ATM machines, like below, we see that either ETS or SARMIA would work fine. We'll pick SARIMA as our model though, because it fits slightly better to ATM4 which has the highest volume. 
  
+```{r show_fit_compare}
+fit_compare_ets_sarima <- function(atm_tsibble) {
+  ets_model <- atm_tsibble |> model(ETS(Cash ~ error("A") + trend("N") + season("A")))
+  sarima_model <- atm_tsibble |> model(ARIMA(Cash ~ PDQ(0,0,0) + season("W")))
+  models <- list(ets = ets_model, sarima = sarima_model)
+  accuracy_table <- purrr::map_df(models, accuracy, .id = "model")
+  return(accuracy_table)
+}
+print(fit_compare_ets_sarima((atm1_tsibble)))
+print(fit_compare_ets_sarima((atm2_tsibble)))
+print(fit_compare_ets_sarima((atm4_tsibble)))
+```
+
+## Forecast
+
+Let's forecast and plot to see if we're on the right track. It looks like we are. 
+
+```{r plot_forecast, warning=FALSE, message=FALSE, fig.width=9}
+forecast_atm <- function(atm_tsibble) {
+  sarima_fit <- atm_tsibble |> model(ARIMA(Cash ~ PDQ(0,0,0) + season("W")))
+  forecasted_values <- sarima_fit |> forecast(h = 30)
+  return(forecasted_values)
+}
+
+atm1_fc <- forecast_atm(atm1_tsibble)
+atm2_fc <- forecast_atm(atm2_tsibble)
+atm4_fc <- forecast_atm(atm4_tsibble)
+
+at1 <- autoplot(atm1_fc) +
+  autolayer(atm1_tsibble |>filter(DATE >= as.Date("2010-04-01"))) +
+  labs(title = "ATM1 FC Cash Withdrawals", y = "Cash") 
+at2 <- autoplot(atm2_fc) +
+  autolayer(atm2_tsibble |>filter(DATE >= as.Date("2010-04-01"))) +
+  labs(title = "ATM2 FC Cash Withdrawals", y = "Cash")
+
+at4 <- autoplot(atm4_fc) +
+  autolayer(atm4_tsibble |>filter(DATE >= as.Date("2010-04-01"))) +
+  labs(title = "ATM4 FC Cash Withdrawals", y = "Cash")
+
+atm1_fc_ti <- atm1_fc |> mutate(ATM = "ATM1") |> as_tibble()
+atm2_fc_ti <- atm2_fc |> mutate(ATM = "ATM2") |> as_tibble()
+atm4_fc_ti <- atm4_fc |> mutate(ATM = "ATM4") |> as_tibble() 
+all_fc <- bind_rows(atm1_fc_ti, atm2_fc_ti, atm4_fc_ti) 
+# all_fc <- as_tibble(all_fc)
+
+# Plot using ggplot
+all_three <- ggplot(all_fc, aes(x = DATE, y = .mean, color = ATM)) +
+  geom_line() +
+  labs(title = "ATM Cash Withdrawal Forecasts", x = "Date", y = "Forecasted Cash") +
+  theme_minimal()
+
+combined_plot <- (at1 | at2) /
+                 (at4 | all_three) 
+print(combined_plot)
+
+```
+
+## Conclude
+
+For the last step, we should suggest how much cash we need for each ATM.
+
+Remembering two things, that units of cash are in 100's, and that we are using ATM1 as a proxy for ATM3, we should only have to sum the means of the forecast data sets to get a reasonable forecast for the month per atm. We can omit the confidence bands as the bank is more likely to take this forecast and add a percentage to it. 
+
+And for our final numbers, we will round to the nearest 10$ bill and add commas to make those numbers easy to read.
+
+Assuming no major blizzards or other planet events that will cause bank runs, below is a reasonable prediction of how much money well need for each ATM for the month of May, 2010.  
+
+And we need to remember to watch ATM3 until we have more historical data.
+
+```{r results='asis'}
+
+summarize_forecast <- function(fc) {
+  total_mean <- fc |>
+    summarise(total_mean = sum(.mean, na.rm = TRUE)) %>%
+    pull(total_mean) * 100
+  total_mean_rounded <- round(total_mean / 10) * 10
+  total_mean_dollars <- dollar(total_mean_rounded)
+  return(total_mean_dollars)
+}
+atm1_cash_fc <- summarize_forecast(atm1_fc_ti)
+atm2_cash_fc <- summarize_forecast(atm2_fc_ti)
+atm4_cash_fc <- summarize_forecast(atm4_fc_ti)
+
+final_atm <- sprintf("Required cash for:<br>ATM1 %s<BR>ATM2 %s<BR>ATM3 %s<BR>ATM4 %s",
+        atm1_cash_fc, atm2_cash_fc, atm2_cash_fc, atm4_cash_fc)
+
+cat(final_atm)
+```
+
+
+
+
 # Part B – Forecasting Power
 
 Part B consists of a simple dataset of residential power usage for January 1998 until December 2013.  Your assignment is to model these data and a monthly forecast for 2014.  The data is given in a single file.  The variable ‘KWH’ is power consumption in Kilowatt hours, the rest is straight forward.    Add this to your existing files above. 
