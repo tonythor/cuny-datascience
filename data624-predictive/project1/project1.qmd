@@ -294,11 +294,11 @@ print(combined_plot)
 
 ## Conclude
 
-For the last step, we should suggest how much cash we need for each ATM.
+For the last step, we must suggest how much cash each ATM gives out.
 
-Remembering two things, that units of cash are in 100's, and that we are using ATM1 as a proxy for ATM3, we should only have to sum the means of the forecast data sets to get a reasonable forecast for the month per atm. We can omit the confidence bands as the bank is more likely to take this forecast and add a percentage to it. 
+Remembering two things, that units of cash are in 100's, and that we are using ATM1 as a proxy for ATM3, we should only have to sum the means of the forecast data sets to get a reasonable forecast for the month per atm. 
 
-And for our final numbers, we will round to the nearest 10$ bill and add commas to make those numbers easy to read.
+For our final numbers, we will round to the nearest 10$ bill and add commas to make those numbers easy to read.
 
 Assuming no major blizzards or other planet events that will cause bank runs, below is a reasonable prediction of how much money well need for each ATM for the month of May, 2010.  
 
@@ -322,14 +322,25 @@ final_atm <- sprintf("Required cash for:<br>ATM1 %s<BR>ATM2 %s<BR>ATM3 %s<BR>ATM
         atm1_cash_fc, atm2_cash_fc, atm2_cash_fc, atm4_cash_fc)
 
 cat(final_atm)
+
 ```
 
-
+*Question 1 took about 13 hours to complete*
 
 
 # Part B – Forecasting Power
+*Part B consists of a simple dataset of residential power usage for January 1998 until December 2013.  Your assignment is to model these data and a monthly forecast for 2014.  The data is given in a single file.  The variable ‘KWH’ is power consumption in Kilowatt hours, the rest is straight forward.   Add this to your existing files above.*
+ 
+## Data Exploration
+### At first glance
+### Quick thoughts
+## The Plan
+## Wrangle
+## Model Selection
+## Forecast
+## Conclude 
 
-Part B consists of a simple dataset of residential power usage for January 1998 until December 2013.  Your assignment is to model these data and a monthly forecast for 2014.  The data is given in a single file.  The variable ‘KWH’ is power consumption in Kilowatt hours, the rest is straight forward.    Add this to your existing files above. 
+Part B consists of a simple dataset of residential power usage for January 1998 until December 2013.  Your assignment is to model these data and a monthly forecast for 2014.  The data is given in a single file.  The variable ‘KWH’ is power consumption in Kilowatt hours, the rest is straight forward.   Add this to your existing files above. 
  
 # Part C – BONUS: Water Flow Pipes
  
