@@ -17,6 +17,7 @@ library(stringr)
 library(forecast)
 library(ggfortify)
 library(readxl)
+library(zoo)
 options(scipen=999)
 
 git_p1_data <- "https://github.com/tonythor/cuny-datascience/raw/develop/data624-predictive/project1/data/"
@@ -26,14 +27,14 @@ git_p1_data <- "https://github.com/tonythor/cuny-datascience/raw/develop/data624
  *In part A, I want you to forecast how much cash is taken out of 4 different ATM machines for May 2010.  The data is given in a single file. The variable ‘Cash’ is provided in hundreds of dollars, other than that it is straight forward.  I am being somewhat ambiguous on purpose to make this have a little more business feeling.  Explain and demonstrate your process, techniques used and not used, and your actual forecast.  I am giving you data via an excel file, please provide your written report on your findings, visuals, discussion and your R code via an RPubs link along with the actual.rmd file  Also please submit the forecast which you will put in an Excel readable file.*
 
 
-## Data Exploration 
+## Explore
 
 ### At first glance 
 
 * This is an excel file. There will be conversion, type and/or formatting issues. 
-* There are some malformed records in the spreadsheet. We're going to have to look into that. 
+* There are some malformed records in the spreadsheet. Each record should have an ATM and a date. Some are missing ATM and CASH.   
 * It's difficult to tell if we have every record for every day for every atm. We should look at that.
-* After loading the data into R, the date column is in epoch time. That needs to be converted. 
+* After loading the data into R, the date column is in epoch time. That needs to be converted.
 
 Let's start with a chart.
 
@@ -51,7 +52,7 @@ atm_tsibble <- as_tsibble(atm_data, index = DATE, key = ATM)
 
 ggplot(atm_tsibble, aes(x = DATE, y = Cash, color = ATM)) +
   geom_line() +
-  labs(title = "ATM Cash Trend", x = "Date", y = "Cash") +
+  labs(title = "ATM Cash Withdraws", x = "Date", y = "Cash") +
   theme_minimal()
 
 
@@ -106,7 +107,7 @@ atm_tsibble <- atm_tsibble  |> filter(!is.na(ATM)) # this is for the date record
 complete_atm_tibble <- expand.grid(DATE = all_dates, ATM = unique(atm_tsibble$ATM)) 
 complete_atm_tibble <- left_join(complete_atm_tibble, atm_tsibble, by = c("DATE", "ATM"))
 
-missing_data <- complete_atm_tibble %>%
+missing_data <- complete_atm_tibble |>
   filter(is.na(Cash) | Cash == 0)
 
 ggplot(missing_data, aes(x = DATE, y = ATM)) +
@@ -116,7 +117,7 @@ ggplot(missing_data, aes(x = DATE, y = ATM)) +
   theme_minimal()
 
 # Show all the missing records
-complete_atm_tibble %>%
+complete_atm_tibble |>
   filter(ATM != "ATM3" & (is.na(Cash) | Cash == 0) & DATE < as.Date("2010-05-01"))
 
 ```
@@ -138,7 +139,7 @@ complete_atm_tibble |>
 
 Perfect, ATM3 appears to be identical to ATM1 with respect to cash withdraw. We'll use ATM1 as a proxy for ATM3 in the final conclusion, though we have to remember to suggest actively monitoring ATM3's behavior until more data is collected. 
 
-## The Plan
+## Plan
 
 Let's organize the plan start to finish before we act.
 
@@ -180,8 +181,9 @@ complete_atm_tibble <- complete_atm_tibble|>
   mutate(Cash = ifelse(is.na(Cash), Average_Cash, Cash)) |>
   select(-Average_Cash)
 
-## double check that imputation worked
-print(complete_atm_tibble %>%
+## double check that imputation worked, the NA records should be gone
+## but we should still see the zero records. Zero is a valid number. 
+print(complete_atm_tibble |>
   filter((is.na(Cash) | Cash == 0) & DATE < as.Date("2010-05-01"))) 
 ```
 
@@ -206,9 +208,9 @@ p2 <- ggplot(complete_atm_tibble |> filter(is.na(Cash)), aes(x = DATE, y = ATM))
 
 That's perfect.
 
-## Model Selection
+## Select Model
 
-Before we start forecasting, we'll decompose this to help us review trend and seasonality. This will help us select a model. 
+To help us select a model, we'll decompose this to help us review trend and seasonality.
 
 
 ```{r autoplot_show_seasonality, fig.height=9, fig.width=9}
@@ -243,9 +245,17 @@ fit_compare_ets_sarima <- function(atm_tsibble) {
   accuracy_table <- purrr::map_df(models, accuracy, .id = "model")
   return(accuracy_table)
 }
-print(fit_compare_ets_sarima((atm1_tsibble)))
-print(fit_compare_ets_sarima((atm2_tsibble)))
-print(fit_compare_ets_sarima((atm4_tsibble)))
+# print(fit_compare_ets_sarima((atm1_tsibble)))
+# print(fit_compare_ets_sarima((atm2_tsibble)))
+# print(fit_compare_ets_sarima((atm4_tsibble)))
+
+combined_results <- rbind(
+  mutate(fit_compare_ets_sarima(atm1_tsibble), ATM = "ATM1"),
+  mutate(fit_compare_ets_sarima(atm2_tsibble), ATM = "ATM2"),
+  mutate(fit_compare_ets_sarima(atm4_tsibble), ATM = "ATM4") # Add additional data frames as needed
+)
+print(combined_results |> select(-.type, -.model, -ME))
+
 ```
 
 ## Forecast
@@ -294,21 +304,17 @@ print(combined_plot)
 
 ## Conclude
 
-For the last step, we must suggest how much cash each ATM gives out.
+For the last step, we must forecast how much cash each ATM gives out. Remembering two things, that units of cash are in 100's, and that we are using ATM1 as a proxy for ATM3, we should only have to sum the means of the forecast data sets to get a reasonable forecast for the month per atm. 
 
-Remembering two things, that units of cash are in 100's, and that we are using ATM1 as a proxy for ATM3, we should only have to sum the means of the forecast data sets to get a reasonable forecast for the month per atm. 
+For clarity in our our final numbers, we will round to the nearest 10$ bill, add commas, and leave out confidence band information.
 
-For our final numbers, we will round to the nearest 10$ bill and add commas to make those numbers easy to read.
-
-Assuming no major blizzards or other planet events that will cause bank runs, below is a reasonable prediction of how much money well need for each ATM for the month of May, 2010.  
-
-And we need to remember to watch ATM3 until we have more historical data.
+That said, assuming no major blizzards or other planet events that will cause bank runs, below is a reasonable prediction of how much money well need for each ATM for the month of May, 2010. Also, please remember to watch ATM3 until we have more historical data.
 
 ```{r results='asis'}
 
 summarize_forecast <- function(fc) {
   total_mean <- fc |>
-    summarise(total_mean = sum(.mean, na.rm = TRUE)) %>%
+    summarise(total_mean = sum(.mean, na.rm = TRUE))|>
     pull(total_mean) * 100
   total_mean_rounded <- round(total_mean / 10) * 10
   total_mean_dollars <- dollar(total_mean_rounded)
@@ -325,23 +331,176 @@ cat(final_atm)
 
 ```
 
-*Question 1 took about 13 hours to complete*
+*Note: the above section took about 13 hours to complete*
 
 
 # Part B – Forecasting Power
 *Part B consists of a simple dataset of residential power usage for January 1998 until December 2013.  Your assignment is to model these data and a monthly forecast for 2014.  The data is given in a single file.  The variable ‘KWH’ is power consumption in Kilowatt hours, the rest is straight forward.   Add this to your existing files above.*
  
-## Data Exploration
-### At first glance
-### Quick thoughts
-## The Plan
-## Wrangle
-## Model Selection
-## Forecast
-## Conclude 
+## Explore
 
-Part B consists of a simple dataset of residential power usage for January 1998 until December 2013.  Your assignment is to model these data and a monthly forecast for 2014.  The data is given in a single file.  The variable ‘KWH’ is power consumption in Kilowatt hours, the rest is straight forward.   Add this to your existing files above. 
+### Initial Thoughts
+
+* This is an excel file, there might be some formatting issues. 
+* There are no missing dates between the first and last record, which is great.
+* There is one missing record, 2008-Aug. It has NULL KWH.
+* Ugh, it's a yearmonth datatype, which doesn't play well with the tsibble/fable/mable ecosystem. And I'm tired of wasting time on that. I am making the conscious decision to skip all that, and do this section using the r stats package instead. It might take longer, but it's probably a more fully baked package anyway. 
+
+Let's start with a chart, but we need to wrangle that date first.
+
+```{r initial_plot2, fig.height=4, fig.width=9, warning=FALSE}
+file_url <- paste0(git_p1_data, "residential_customer_forecast.xlsx")
+local_file_path <- "residential_customer_forecast.xlsx"
+download.file(file_url, local_file_path, mode = "wb")
+
+power <- read_excel(local_file_path) |>
+  mutate(Date = as.Date(paste0(`YYYY-MMM`, "-01"), format = "%Y-%b-%d")) |>
+  select(-`YYYY-MMM`, -CaseSequence)
+
+unlink(local_file_path)
+
+power |> 
+  ggplot(aes(x = Date, y = KWH)) +
+  geom_line(colour = "blue") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray")
+
+```
+
+The plot might show a light positive trend from about 2006 on. It is definitely seasonal with respect to month.  There's a pretty big outlier, but it seems like a valid record. Let's leave it alone for now. 
+
+
+## Plan
+1. Wrangle: Get dates loaded. (Done above) 
+2. Impute that one null KWH record. 
+3. Plot a decomposition
+4. Spend some time researching the stats package
+5. Forecast: Select a model 
+6. Forecast: Wrangle and forecast
+7. Conclude: Predict 
+
+## Wrangle
+
+**Impute First**
+We'll replace that missing record with the average KWH of the two records from August 2007 and August 2009. This is highly seasonal data, and there might be a slight trend. Taking the average of those two specific records assures it follows the seasonality trends. 
+
+Also, it's as good a guess as any.
+
+```{r}
+# Let's impute that missing date, maybe we just grab the record from last year. It might not contain the trend, but it'll contain the seasonal. 
+average_kwh <- power |>
+  filter(Date %in% as.Date(c("2007-09-01", "2009-09-01"))) |>
+  summarize(average_kwh = mean(KWH)) |>
+  pull(average_kwh) 
+
+power <- power |>
+  mutate(KWH = ifelse(Date == as.Date("2008-09-01"), average_kwh, KWH))
+
+```
+
+## Select Model
+
+Let's decompose first. We see quickly that this has a slight trend, and is extremely seasonal over the months. let's compare some models and see which one we like more. 
+
+```{r}
+ts_data <- ts(power$KWH, start = c(1998, 1), frequency = 12)
+stl_decomp <- stl(ts_data, s.window = "periodic")
+plot(stl_decomp)
+
+```
+
+Awesome. Definitely seems like we have some seasonality. Let's test Arima and ETS again, but this time using the Stats package instead. We're definitely going to apply log to that data. 
+
+Looks like ETS(MAM) performs the best, and we needed to log the data to get the best results. We'll use ETS(MAM) for the next section.
+```{r warning=FALSE}
+library(stats)
+library(forecast)
+
+get_accuracy <- function(model, model_name) {
+  accuracy_metrics <- accuracy(model)
+  model_accuracy <- data.frame(
+    Model = model_name,
+    ME = accuracy_metrics["Training set", "ME"],
+    RMSE = accuracy_metrics["Training set", "RMSE"],
+    MAE = accuracy_metrics["Training set", "MAE"],
+    MPE = accuracy_metrics["Training set", "MPE"],
+    MAPE = accuracy_metrics["Training set", "MAPE"],
+    MASE = accuracy_metrics["Training set", "MASE"],
+    ACF1 = accuracy_metrics["Training set", "ACF1"]
+  )
+  model_accuracy[, -1] <- round(model_accuracy[, -1], 6)
+  return(model_accuracy)
+}
+
+power_ts <- ts(log(power$KWH), start = c(1998, 1), frequency = 12)
+
+etszzz_ac <- get_accuracy(ets(power_ts, model = "ZZZ") ,"ETSZZZ")
+etsmnn_ac <- get_accuracy(ets(power_ts, model = "MNM"), "ETSMNN")
+etsana_ac <- get_accuracy(ets(power_ts, model = "ANA"), "ETSANA")
+etsmam_ac <- get_accuracy(ets(power_ts, model = "MAM"), "ETSMAM")
+auto_arima <- get_accuracy(auto.arima(power_ts), "A-AUTO")
+arima010 <- get_accuracy(arima(power_ts, order = c(0, 1, 0)), "A-010") 
+arimas111 <- get_accuracy(arima(power_ts, order = c(0, 1, 1), seasonal = list(order = c(1, 1, 1), period = 12)), "A-011-111")
+arimas211 <- get_accuracy(arima(power_ts, order = c(0, 1, 1), seasonal = list(order = c(2, 1, 1), period = 12)), "A-011-211")
+arimas010 <- get_accuracy(arima(power_ts, order = c(0, 0, 0), seasonal = list(order = c(0, 1, 0), period = 12)), "A-000-010")
+accuracy_table <- rbind(etszzz_ac, etsmnn_ac, etsana_ac,  etsmam_ac, auto_arima, arimas111, arimas211, arimas010,arima010 )
+print(accuracy_table)
+```
+
+## Forecast
+
+Using ETS(MAM), now we forecast and plot for a year, and we're going to use the stats library for this also! 
+
+
+```{r}
+
+power_ts <- ts(log(power$KWH), start = c(1998, 1), frequency = 12)
+best_ets_model <- ets(power_ts, model = "MAM")
+fckw_values <- forecast(best_ets_model, h = 12)
+fckw_values$mean <- exp(fckw_values$mean)
+fckw_values$lower <- exp(fckw_values$lower)
+fckw_values$upper <- exp(fckw_values$upper)
+
+historical_data_df <- as.data.frame(exp(power_ts))
+historical_data_df$Date <- seq(as.Date("1998-01-01"), by = "month", 
+  length.out = nrow(historical_data_df))
+
+historical_data_df <- historical_data_df |>
+  rename(kwh = x)
+# head(historical_data_df)
+
+forecast_data_df <- as.data.frame(fckw_values)
+forecast_months <- strptime(rownames(forecast_data_df), format = "%b %Y")
+forecast_data_df$Date <- myd(paste0(rownames(forecast_data_df), "-01"))
+forecast_data_df <- forecast_data_df |> rename(kwh = `Point Forecast`)
+# head(forecast_data_df)
+
+ggplot() +
+  geom_line(data = filter(historical_data_df, Date > as.Date("2010-12-31")), aes(x = Date, y = kwh), colour = "blue") +
+  geom_line(data = forecast_data_df, aes(x = Date, y = kwh), colour = "red") +
+  geom_ribbon(data = forecast_data_df, aes(x = Date, ymin = `Lo 95`, ymax = `Hi 95`), fill = "orange", alpha = 0.2) +
+  geom_ribbon(data = forecast_data_df, aes(x = Date, ymin = `Lo 80`, ymax = `Hi 80`), fill = "orange", alpha = 0.5) +
+  labs(title = "Power Consumption Forecast (Last Two Years of Historical Data)", x = "Date", y = "KWH") +
+  theme_minimal()
+
+```
+
+## Conclude 
+Here is our forecast for power consumption for 2014. We'll leave confidence intervals in as this time as this is power, and that might be really important to somebody.
+
+*Personal note: There isn't as much 'built in stuff' or shortcuts in stats as there are in tsibble's, mables, fables, etc, but overall this library feels a lot more stable and predictable. This was a good exercise considering I'll most likely never use R for forecasting again, I'm goign to have to learn a different library in scala and python anyway.*
+
+```{r}
+print(forecast_data_df) 
+```
+
  
 # Part C – BONUS: Water Flow Pipes
  
 Part C consists of two data sets.  These are simple 2 columns sets, however they have different time stamps.  Your optional assignment is to time-base sequence the data and aggregate based on hour (example of what this looks like, follows).  Note for multiple recordings within an hour, take the mean.  Then to determine if the data is stationary and can it be forecast.  If so, provide a week forward forecast and present results via Rpubs and .rmd and the forecast in an Excel readable file.   
+
+## Explore
+## Plan
+## Wrangle
+## Select Model
+## Forecast
+## Conclude
