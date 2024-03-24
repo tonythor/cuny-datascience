@@ -1,5 +1,5 @@
 ---
-title: "Project 1"
+title: "624 Project 1"
 author: "By Tony Fraser"
 date: "24 Mar 2024"
 format:
@@ -43,6 +43,7 @@ file_url <- paste0(git_p1_data, "atm_624.xlsx")
 local_file_path <- "atm_624.xlsx"
 download.file(file_url, local_file_path, mode = "wb")
 atm_data <- read_excel(local_file_path)
+
 unlink(local_file_path)
 
 # immediately fix the date out of excel epoch time. 
@@ -77,7 +78,6 @@ ggplot(atm_tsibble, aes(x = DATE, y = Cash, color = ATM)) +
 ### Research Spikes 
 
 **Spike 1: What about the outlier?**
-
 Let's look at that spike and a couple of days before and and after, just to see.
 
 ```{r blow_up_outlier, fig.height=5}
@@ -94,11 +94,9 @@ That spike is Tuesday the 9th of February. A quick Google search shows the North
 Obviously, if this was a real world project, we'd need to verify that ATM's location was in the Northeast near the blizzard. Given this assignment, I suspect it was, and I suspect that's why that assignment contains this data set.
 
 **Decision 1: Smooth over the outlier**
-
 We'll smooth that over. We'll replace those storm records with an average of a few days before and after. And, well politely suggest to the bank if there is another storm, that they have two people on standby with a 15 foot stack of 20 dollar bills on hand.
 
 **Spike 2: How much data are we missing? What do we do?**
-
 For missing time series data, let's construct a dataframe with all the dates, and the left join everything together to make sure to account for each day atm combination. That's the one of the best ways I know to check every date in a time series. 
 
 ```{r plot_missing, fig.height=4, message=FALSE, warning=FALSE}
@@ -123,13 +121,11 @@ complete_atm_tibble |>
 ```
 
 **Decision 2: Impute NA's in ATM 1 and 2** 
-
 Above, it looks like we're missing a couple of days worth of data (denoted as NA in the list of records, and x's on the chart.) As well we have a couple of days where cash delivered was zero in the record list above. Zero is to be expected, the ATM didn't give out any money that day. The NA's are missing records that were caught with the left join. 
 
 We'll impute those missing records as part of the plan.
 
 **Decision 3: Drop ATM3, suggest ATM3 is like ATM1** 
-
 ATM3 only dispensed cash for 2010-04-28, 2010-04-29, 2010-04-30. It isn't missing data, it just seems like it hasn't been giving cash.  Perhaps the ATM was stationed in a building under renovation, we don't know. Regardless, let's quickly look at those dates, and whichever other ATM seems the closest can be our recommendation for ATM3. 
 
 ```{r fig.height=4}
@@ -235,7 +231,7 @@ pa4 <- autoplot(atm4_components)
 
 Above we can see considerable weekly seasonality. ETS and SARIMA are both likely choices for good forecasting models.
 
-If we compare ETS adn SARIMA across all three ATM machines, like below, we see that either ETS or SARMIA would work fine. We'll pick SARIMA as our model though, because it fits slightly better to ATM4 which has the highest volume. 
+If we compare ETS and SARIMA across all three ATM machines, like below, we see that either ETS or SARMIA would work fine. We'll pick SARIMA as our model though, because it fits slightly better to ATM4 which has the highest volume. 
  
 ```{r show_fit_compare}
 fit_compare_ets_sarima <- function(atm_tsibble) {
@@ -306,7 +302,7 @@ print(combined_plot)
 
 For the last step, we must forecast how much cash each ATM gives out. Remembering two things, that units of cash are in 100's, and that we are using ATM1 as a proxy for ATM3, we should only have to sum the means of the forecast data sets to get a reasonable forecast for the month per atm. 
 
-For clarity in our our final numbers, we will round to the nearest 10$ bill, add commas, and leave out confidence band information.
+For clarity in our final numbers, we will round to the nearest 10$ bill, add commas, and leave out confidence band information.
 
 That said, assuming no major blizzards or other planet events that will cause bank runs, below is a reasonable prediction of how much money well need for each ATM for the month of May, 2010. Also, please remember to watch ATM3 until we have more historical data.
 
@@ -399,7 +395,7 @@ power <- power |>
 
 ## Select Model
 
-Let's decompose first. We see quickly that this has a slight trend, and is extremely seasonal over the months. let's compare some models and see which one we like more. 
+Let's decompose first. We see quickly that this has a slight trend and is extremely seasonal over the months. let's compare some models and see which one we like more. 
 
 ```{r}
 ts_data <- ts(power$KWH, start = c(1998, 1), frequency = 12)
@@ -487,20 +483,182 @@ ggplot() +
 ## Conclude 
 Here is our forecast for power consumption for 2014. We'll leave confidence intervals in as this time as this is power, and that might be really important to somebody.
 
-*Personal note: There isn't as much 'built in stuff' or shortcuts in stats as there are in tsibble's, mables, fables, etc, but overall this library feels a lot more stable and predictable. This was a good exercise considering I'll most likely never use R for forecasting again, I'm goign to have to learn a different library in scala and python anyway.*
-
 ```{r}
 print(forecast_data_df) 
 ```
 
+*Personal note: There isn't as much 'built in stuff' or shortcuts in stats as there are in tsibble's, mables, fables, etc, but overall this library feels a lot more stable and predictable. This was a good exercise considering I'll most likely never use R for forecasting again, I'm going to have to learn a different library in scala and python anyway.*
  
-# Part C – BONUS: Water Flow Pipes
- 
-Part C consists of two data sets.  These are simple 2 columns sets, however they have different time stamps.  Your optional assignment is to time-base sequence the data and aggregate based on hour (example of what this looks like, follows).  Note for multiple recordings within an hour, take the mean.  Then to determine if the data is stationary and can it be forecast.  If so, provide a week forward forecast and present results via Rpubs and .rmd and the forecast in an Excel readable file.   
+# Part C: Water Flow Pipes
+*Part C consists of two data sets.  These are simple 2 columns sets, however they have different time stamps.  Your optional assignment is to time-base sequence the data and aggregate based on hour.  Note for multiple recordings within an hour, take the mean.  Then to determine if the data is stationary and can it be forecast.  If so, provide a week forward forecast and present results via Rpubs and .rmd and the forecast in an Excel readable file.*
 
 ## Explore
+
+### Initial thoughts
+* The problem asks if this can be forecast. Maybe it can't, watch out. 
+* There are two excel files. Expect an import problem.  
+* One file appears to be hourly scheduled records from 10/23/15 to 12/3/15. The other,  a much more granular than hourly record set, contains data between 10/23 and 11/1. We'll refer to these as the "scheduled" one and the "random" (sampled) one.
+* These data sets are not from the same water pipe. 10/23/2015 9:00AM one sheet shows 6.2, and on the other shows 55.7. They are also on very differnet scales. 
+* There is some record overlap between the two, date is not a unique field. The source must be taken into account to identify uniqueness. 
+* These dates are in serial datetime, excel's propritary date storage format. 
+* For the scheduled dataset, we might have to check that later to see if the series is complete. 
+
+### After further exploration
+* Well into this exercise, I found that when trying to convert a serial datetime to a real date, the scheduled records were slightly off,causing records like 4:59:59 AM instead fo 5AM. Later we group_by().sum() which means data got lost. I have retrofitted this upstream loading from excel code to levergage lubridate's round to minute function to account for this. 
+* The point above about the two data feeds above not overlapping with dates is what broke this problem.
+
+
 ## Plan
+* Wrangle: Rename Waterflow columns to WaterFlow1 and WaterFlow2, union, sort by time, and create final waterflow of values, or means.
+* Wrangle: group by hour sum Waterflow for a final dataset
+* Forecast: Decompose and chart
+* Forecast: check for stationary data, acf/pacf
+* Forecast
+* Conclude
+
+
 ## Wrangle
-## Select Model
-## Forecast
+
+First we'll load these into dataframes, fix the dates, union and sort.
+```{r, warning=FALSE}
+# w -> water s -> scheduled. r -> random 
+water_r <- "waterflow_pipe1.xlsx"
+water_s <- "waterflow_pipe2.xlsx"
+ws_p <- paste0(git_p1_data, water_s)
+wr_p <- paste0(git_p1_data, water_r)
+
+download.file(ws_p, water_s, mode = "wb")
+download.file(wr_p , water_r, mode = "wb")
+
+
+# we could probaly do some of this mutation after the union, but I prefer clean data to start.
+ws <- read_excel(water_s) |>
+  mutate(datetime = as.POSIXct((`Date Time` - 25569) * 86400, origin = "1970-01-01", tz = "UTC")) |>
+  mutate(datetime = round_date(datetime, unit = "hour")) |>
+  select(-`Date Time`) |>
+  mutate(dataset = "ws")
+
+wr <- read_excel(water_r)  |> 
+  mutate(datetime = as.POSIXct((`Date Time` - 25569) * 86400, origin = "1970-01-01", tz = "UTC")) |>
+  select(-`Date Time`) |> 
+  mutate(dataset = "wr")
+
+water_df<- union(wr, ws)  |> 
+  arrange(datetime)  |>
+  mutate(WaterFlow = round(WaterFlow, 3)) # just simplify display
+
+unlink(water_s)
+unlink(water_r)
+
+print(n=8, water_df)
+
+```
+Perfect, now let's aggregate date/time to the hour. Best way to do that cleanly would be to create a column for date and hour.  
+
+Also, after being grouped, the last day in this combined data set is incomplete. There are only 17 records, when there should be 24. That makes sense, the data cuts off in the afternoon. That we can chop off that partial day to create an hourly dataset to forecast from. 
+
+Then, we can plot. 
+
+```{r warning=FALSE, message=FALSE}
+water_df <- water_df |>
+  mutate(
+    date = as.Date(datetime),    # Extracting just the date part
+    hour = hour(datetime)        # Extracting the hour part
+  )# we don't need this, it's all for 2015.
+
+# looks good.
+# print(n=8, water_df)
+
+water_df <- water_df |> 
+ group_by(date, hour) |>
+  summarise(avg_water_flow = mean(WaterFlow, na.rm = TRUE)) |>
+  filter(date < "2015-12-03") |>
+  ungroup()
+# great, data by day.
+print(n=4, water_df)
+
+# prove that there are 24 records per day. if this shows up empty, it's perfect.
+water_df %>%
+  group_by(date) %>%
+  summarise(recordsPerDay = n()) |>
+  filter (recordsPerDay != 24)
+
+# perfect, now let's try to plot. 
+# print(n=8, water_df)
+
+water_df %>%
+  mutate(datetime = as.POSIXct(paste(date, hour, sep=" "), format="%Y-%m-%d %H")) |>
+  ggplot(aes(x = datetime, y = avg_water_flow)) +
+  geom_line() +
+  labs(title = "Average Water Flow Over Time", x = "Date Time", y = "Average Water Flow") +
+  theme_minimal()
+```
+
+### Decompose
+
+Perfect. Now let's decompose. STL requires a time series object, so we'll create one to plot. 
+
+```{r decompose, fig.width=9, fig.height=8}
+start_date <- as.numeric(format(min(water_df$date), "%Y%m%d"))
+ts_data <- ts(water_df$avg_water_flow, frequency = 24, start = c(substr(start_date, 1, 4), substr(start_date, 5, 6)))
+stl_decomp <- stl(ts_data, s.window = "periodic")
+
+acf_plot <- ggAcf(ts_data)
+pacf_plot <- ggPacf(ts_data)
+combined_plot <- acf_plot + pacf_plot
+
+plot(stl_decomp)
+plot(combined_plot) 
+
+```
+
+Ok, this definitely isn't stationary. Let's show the furthers equalizer we've ever done in our class, which is diff(diff(log())).  As one can see, this still isn't stationary, and in fact the log(), diff(log), and diff(diff(log)) all look about the same.   
+
+
+```{r fig.width=9, fig.height=8}
+diff_ts_data <- diff(diff(log(ts_data)))
+
+stl_decomp_diff <- stl(diff_ts_data, s.window = "periodic")
+acf_plot_diff <- ggAcf(diff_ts_data)
+pacf_plot_diff <- ggPacf(diff_ts_data)
+combined_plot_diff <- acf_plot_diff + pacf_plot_diff
+
+plot(stl_decomp_diff)
+plot(combined_plot_diff)
+
+```
+
+Because we're in this non-stationary pattern, the immediate assumption is these two datasets shouldn't have been combined in the first place. 
+
+**Reasarch Spike 1: Scale of these datasets** 
+We already know know this more randomly sampled dataset is only a few days worth of data, while the scheduled one longer. Let's go back and roll up by day and look at them together. 
+
+We knew this, but records before November 1'st are going to be a lot larger than records for the middle of November, because we are rolling up with means by hour and day.
+
+```{r}
+
+water_df<- union(wr, ws)  |> 
+  arrange(datetime)  |>
+  mutate(WaterFlow = round(WaterFlow, 3)) |>
+  mutate(
+    date = as.Date(datetime),    # Extracting just the date part
+    hour = hour(datetime)        # Extracting the hour part
+  )|>
+  select(-datetime) |>
+  group_by(date, dataset) %>%
+  summarise(flow_per_day = sum(WaterFlow)) 
+
+ggplot(water_df, aes(x = date, y = flow_per_day, color = dataset)) +
+  geom_line() +
+  labs(title = "Daily Water Flow", x = "Date", y = "Flow per Day", color = "Dataset") +
+  theme_minimal()
+```
+
+At this point, my gut is telling me that we either need to go get more data from the more randomly sampled dataset, so it extends out to the end of the scheduled data set, or we need to cut off scheduled dataset so the timelines overlap. 
+
+You can forecast the "sum of all waterflow in the pipes," or the "sum of all car sales in Montana for July" but only if you have the overlapping time series.
+
+
 ## Conclude
+
+If I would have started this problem with more common sense maybe I would have saved myself hours worth of work, but in the end merging these two datasets won't work. Complex seasonality or trend is one thing, there could be a second seasonal pattern, seasonal at both months and weeks, but the shock of those big week numbers for the first week of this time series won't work. 
