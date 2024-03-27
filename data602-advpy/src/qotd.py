@@ -615,3 +615,112 @@ general_services = [
     "Smokeroom Steward",
     "Typist",
 ]
+
+
+## let's use the same dataset we used last week.
+import pandas as pd
+usecols=['Fate', 'Department/Class', 'Passenger/Crew', 'Adult/Minor', 'Sex', 'Position']
+cuny  = "https://raw.githubusercontent.com/tonythor/cuny-datascience"
+lusitania = pd.read_csv(f"{cuny}/develop/data/lusitania_manifest.csv") 
+lusitania.columns = lusitania.columns.str.lower().str.replace(' ', '_').str.replace('/', '_')
+
+# 1. How would you delete:
+## An index from your dataframe
+lusitania = lusitania.reset_index(drop=True)
+# A column from your dataframef
+lusitania = lusitania.drop('position', axis=1)
+    # A row from your dataframe
+lusitania = lusitania.drop(0, axis=0)
+
+# 2. How do you iterate over a pandas dataframe?
+for  row in lusitania.iterrows():
+    print(f"Row:{row}")
+
+# 3. How would you convert a string to a date?    
+from datetime import datetime
+moon_landing = "1969-07-16"
+d = datetime.strptime(moon_landing, "%Y-%m-%d").date() #<- not a datetime! 
+print(type(d))
+
+# 4. What is data aggregation?  Give an example in Python. 
+# It's rolling up data. You might want reduce hourly data to daily data, 
+# or something more like groupBy().count(). GroupBy/count or GroupBy/Sum
+# are probably the two most common types of aggregations. 
+
+sex_count = lusitania.groupby('sex').size()
+print(sex_count)
+# sex
+# Female     518
+# Male      1443
+
+
+
+# 5. What is GroupBy in Pandas (groupby()). Give an example in Python.
+# let's use groupby and bins together.
+lusitania_age = (
+    lusitania['age']
+    .pipe(pd.to_numeric, errors='coerce')  # Convert 'age' to numeric, coerce errors to NaN
+    .dropna()                              # Drop NaN values
+    .astype(int)                           # Convert remaining 'age' values to integers
+)
+
+bins = range(0, max(lusitania_age) + 10, 10)
+labels = [f"{i}-{i+9}" for i in range(0, max(lusitania_age), 10)]
+age_groups = pd.cut(lusitania_age, bins=bins, labels=labels, right=False)
+age_group_counts = age_groups.value_counts().sort_index()
+print(age_group_counts)
+# age
+# 0-9       73
+# 10-19     73
+# 20-29    337
+# 30-39    389
+# 40-49    212
+# 50-59    117
+# 60-69     28
+# 70-79      6
+# Name: count, dtype: int64
+
+
+
+# 1. What is matplottlib and seaborn?  When would you choose one over the other?
+
+# Matplotlib is like a basic art set for graph drawing in Python. It's great for simple and customizable graphs, like lines and dots. Seaborn is like an advanced art kit that builds on Matplotlib. It makes fancier and more complex graphs easier, like those showing trends in lots of data. When to choose which? Use Matplotlib for simple graphs. When you have lots of data and want nicer looking graphs without much extra work, go for Seaborn.
+
+
+# 2. Image you are creating a visualization for a presentation at work.  What are some recommendations or guidelines you would follow to make engaging and informative visuals?
+
+# I have a few suggestions for graphics.
+# 1. Simple is better. If your high school child can't understand it, it's probably not done.
+# 2. Don't need to show everything, just show what you need to show.
+# 3. Use colors and legends to make things crystal clear.
+# 4. Use tangible metrics and labels. "$1.2BN" is easier to read on a chart than "1200000000" or "1.2e9"
+
+
+# 3. Give an example of either a matplotlib or seaborn graphic (give code). 
+
+# Here's a simple but super clear example you can cut and paste. 
+import pandas as pd
+import matplotlib.pyplot as plt
+cuny  = "https://raw.githubusercontent.com/tonythor/cuny-datascience"
+lusitania = pd.read_csv(f"{cuny}/develop/data/lusitania_manifest.csv") 
+lusitania.columns = lusitania.columns.str.lower().str.replace(' ', '_').str.replace('/', '_')
+lusitania['age_group'] = pd.cut(
+    lusitania['age'].pipe(pd.to_numeric, errors='coerce'), 
+    bins=bins, 
+    labels=labels, 
+    right=False
+)
+grouped_data = lusitania.groupby(['fate', 'age_group']).size().unstack(fill_value=0)
+grouped_data.T.plot(kind='bar', stacked=False)
+plt.xlabel('Age Groups')
+plt.ylabel('Count')
+plt.title('Survival Count by Age Group')
+plt.show()
+
+# 4. Read the following: https://speedwell.com.au/en/insights/2019/the-manifesto-of-the-data-ink-ratio  What is the data-ink ratio? 
+
+# It's the fictitious percentage of ink on a chart that is for showing data, versus for not showing data. The concept is -- use your ink to show data and don't use any ink to show stuff that's not data. 
+
+# How can you use python libraries such as matplotlib, seaborn, plotly, etc. to incorporate this data-ink ratio in your visualizations?
+#
+# I don't quite understand the wording of that question. I think a better question is, with respect to the data-ink ratio, what can we do with our plots and charts to make graphics more legible. The answer is pretty simple, keep the chart to just the fact you are trying to show. Filter out everything that isn't exactly what you want to show. If your graphic is exploratory and you're not showing something specific, even then show just the exploratory data you are showcasing and nothing else (except labels and legends) 
