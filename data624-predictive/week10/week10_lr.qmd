@@ -1,0 +1,27 @@
+---
+title: "Week10 Linear Regression"
+author: "By Tony Fraser"
+date: "28 Mar 2024"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+```{r load_libraries, message=FALSE, warning=FALSE}
+library(fpp3)
+library(patchwork)
+library(lubridate)
+library(scales)
+library(stringr)
+library(forecast)
+options(scipen=999)
+library(tsibble)
+library(ggplot2)
+library(feasts)
+library(forecast)
+library(ggfortify)
+library(fable)
+library(dplyr)
+library(tsibble)
+```
