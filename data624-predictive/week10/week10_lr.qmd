@@ -1,7 +1,7 @@
 ---
-title: "Week10 Linear Regression"
+title: "Week 10 Linear Regression"
 author: "By Tony Fraser"
-date: "28 Mar 2024"
+date: "29 Mar 2024"
 format:
   html:
     theme: cosmo
@@ -9,19 +9,263 @@ format:
     number_sections: true
 ---
 ```{r load_libraries, message=FALSE, warning=FALSE}
-library(fpp3)
+library(AppliedPredictiveModeling)
+library(caret)
+library(pls)
 library(patchwork)
 library(lubridate)
 library(scales)
-library(stringr)
-library(forecast)
-options(scipen=999)
-library(tsibble)
 library(ggplot2)
-library(feasts)
-library(forecast)
-library(ggfortify)
-library(fable)
 library(dplyr)
-library(tsibble)
+library(randomForest)
+options(scipen=999)
+data(permeability)
+data(ChemicalManufacturingProcess)
+```
+
+## 6.2 Permeability and Fingerprints
+
+*Developing a model to predict permeability (see Sect. 1.4) could save significant resources for a pharmaceutical company, while at the same time more rapidly identifying molecules that have a sufficient permeability to become a drug*
+
+1. *Start R and use these commands to load this data. The matrix fingerprints contains the 1,107 binary molecular predictors for the 165 compounds, while permeability contains permeability response.*
+
+Already loaded. 
+
+2.  *The fingerprint predictors indicate the presence or absence of substructures of a molecule and are often sparse meaning that relatively few of the molecules contain each substructure. Filter out the predictors that have low frequencies using the `nearZeroVar` function from the `caret` package. How many predictors are left for modeling?*
+
+```{r nearZeroVar}
+# ncol(fingerprints) #[1] 1107
+nzv <- nearZeroVar(fingerprints)
+# > length(nzv) # [1] 719
+fingerprints_clean <- fingerprints[, -nzv]
+print(ncol(fingerprints_clean)) # 388
+```
+
+3.  *Split the data into a training and a test set, pre-process the data, and tune a PLS model. How many latent variables are optimal and what is the corresponding resampled estimate of R Squared?* 
+4. *Predict the response for the test set. What is the test set estimate of R Squared?*
+
+```{r test_train_tune_pls}
+set.seed(123)  
+
+# Convert matrices to data frames and combine them into a single dataset.
+permeability_df <- as.data.frame(permeability)
+fingerprints_clean_df <- as.data.frame(fingerprints_clean)
+combined_data <- cbind(permeability_df, fingerprints_clean_df)
+
+# Split the combined data into training and testing sets with an 80/20 split.
+# return as a matrix, not a list.
+splitIndex <- createDataPartition(combined_data$permeability, p = 0.8, list = FALSE)
+train <- combined_data[splitIndex, ]
+test <- combined_data[-splitIndex, ]
+
+# Pre-process the training data by centering and scaling, and apply the same transformation to the test data.
+# center -> subtracts the mean of each variable from their respective values. 
+# scale -> after centering, brings vars to a common scale 
+# preproc(center/scale) for PLS, where scale is important, not things like trees.
+preProcValues <- preProcess(train, method = c("center", "scale")) 
+train_processed <- predict(preProcValues, train)
+test_processed <- predict(preProcValues, test)
+
+#  Fit an initial PLS model with a specified maximum number of components.
+plsFit <- plsr(permeability ~ ., data = train_processed, ncomp = 12)
+
+# Perform cross-validation to determine the optimal number of components.
+validation <- crossval(plsFit, segments = 10, segment.type = "random")
+msep_values <- MSEP(plsFit, segments = 10, segment.type = "random", validation = "CV")
+mean_msep_per_component <- colMeans(msep_values$val)
+optimalComp <- which.min(mean_msep_per_component)
+
+# Fit the PLS model using the optimal number of components found
+plsFitOptimal <- plsr(permeability ~ ., data = train_processed, ncomp = optimalComp)
+
+# Make predictions on the test set and calculate the R-squared value for model evaluation.
+predictions <- predict(plsFitOptimal, newdata = test_processed, ncomp = optimalComp)
+
+n <- nrow(test_processed)
+p <- optimalComp
+R2 <- round(cor(test_processed$permeability, predictions)^2, 3)
+AdjR2 <- 1 - (1 - R2) * ((n - 1) / (n - p - 1))
+mse_pls <- mean((test_processed$permeability - predictions)^2)
+
+# Output the results
+# 5  -> "Components: 6, R-Squared: 0.324, Adjusted R-Squared: 0.162, MSE: 0.581"
+# 10 -> "Components: 11, R-Squared: 0.410, Adjusted R-Squared: 0.085, MSE: 0.582"
+# 11 -> "Components: 12, R-Squared: 0.413, Adjusted R-Squared: 0.042, MSE: 0.539"
+# 15 -> "Components: 16, R-Squared: 0.409, Adjusted R-Squared: -0.221, MSE: 0.607"
+# 20 -> "Components: 21, R-Squared: 0.373, Adjusted R-Squared: -0.944, MSE: 0.693"
+
+sprintf("Components: %d, R-Squared: %.3f, Adjusted R-Squared: %.3f, MSE: %.3f", optimalComp, R2, AdjR2, mse_pls)
+
+## Plot, just to see if it looks reasonable 
+plot_data <- data.frame(Actual = test_processed$permeability, Predicted = predictions)
+ggplot(plot_data, aes(x = Actual, y = permeability.13.comps)) +
+  geom_point() +
+  geom_abline(color = "red", linetype = "dashed") + #  a zero line for reference
+  labs(title = "Actual vs. Predicted Permeability",
+       x = "Actual Permeability",
+       y = "Predicted Permeability") +
+  theme_minimal()
+
+```
+
+**Before we accept a 0.421 as ok, let's double check some assumptions**, like linearity and homoscedasticity. And, are the residuals roughly normally distributed? 
+
+```{r fig.width=10}
+# Calculate the residuals
+residuals <- test_processed$permeability - predictions
+
+# Create the Residuals vs. Fitted Values plot
+resvfit <- ggplot() +
+  geom_point(aes(x = predictions, y = residuals)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Fitted Values", y = "Residuals", title = "Residuals vs. Fitted Values")
+
+hist <- ggplot() +
+  geom_histogram(aes(x = residuals), bins = 30) +
+  labs(x = "Residuals", y = "Count", title = "Histogram of Residuals")
+
+qq <- qqnorm(residuals, plot.it = FALSE)
+qqplot <- ggplot() +
+  geom_point(aes(x = qq$x, y = qq$y)) +
+  geom_qq_line(aes(sample = residuals), color = "red", linetype = "dashed") +
+  labs(title = "QQ-plot of Residuals")
+
+(resvfit | hist | qqplot)
+```
+
+**Conclusion on 0.413:** These plots suggest that the assumptions of linearity and homoscedasticity are reasonably met. The normality of residuals is slightly off but not severely. This might be a reasonable regression model for our data. 
+
+<hr>
+
+5. *Try building other models discussed in this chapter. Do any have better predictive performance?*
+
+I don't think I trust PLS, so let's do Linear Regression. Turns out this is a better fit, but there is a lot of colinearity to manage. Anything higher than a .75 cutoff and the model blows up.
+
+```{r coef}
+library(caret)
+corr_matrix <- cor(train_processed[, -which(names(train_processed) == "permeability")])
+highly_correlated <- findCorrelation(corr_matrix, cutoff = 0.75)
+high_corr_vars <- names(train_processed)[-1][highly_correlated] # -1 to leave the permeability column 
+
+train_processed_reduced <- train_processed[ , !(names(train_processed) %in% high_corr_vars)]
+test_processed_reduced <- test_processed[ , !(names(test_processed) %in% high_corr_vars)]
+
+linearModel <- lm(permeability ~ ., data = train_processed_reduced)
+
+model_summary <- summary(linearModel)
+r_squared <- model_summary$r.squared
+adjusted_r_squared <- model_summary$adj.r.squared
+
+predictions_lr <- predict(linearModel, newdata = test_processed_reduced)
+mse_lr <- mean((test_processed_reduced$permeability - predictions_lr) ^ 2)
+sprintf("R-squared: %.3f Adjusted R-squared: %.3f  MSE %.3f", r_squared, adjusted_r_squared, mse_lr)
+```
+
+6. *Would you recommend any of your models to replace the permeability laboratory experiment?*
+
+100% yes, I'd say let's go with a traditional linear regression. But before I did that, I'd try Random Forest. And I'm surprised this didn't do better than it did. Maybe I'll learn more about turning them in the next few sections.
+
+```{r}
+set.seed(123)
+rfModelFull <- randomForest(permeability ~ ., data = train, ntree = 500)
+predictions_rf_full <- predict(rfModelFull, newdata = test)
+R2_rf_full <- round(cor(test$permeability, predictions_rf_full)^2, 3)
+mse_rf_full <- mean((test$permeability - predictions_rf_full)^2)
+sprintf("RF: All Data: R-squared: %.3f, MSE: %.3f", R2_rf_full, mse_rf_full)
+```
+
+
+# 6.3 Chemical Manufacturing
+
+*A chemical manufacturing process for a pharmaceutical product was discussed in Sect.1.4. In this problem, the objective is to understand the relationship between biological measurements of the raw materials (predictors),measurements of the manufacturing process (predictors), and the response of product yield. Biological predictors cannot be changed but can be used to assess the quality of the raw material before processing. On the other hand, manufacturing process predictors can be changed in the manufacturing pro- cess. Improving product yield by 1% will boost revenue by approximately one hundred thousand dollars per batch*
+
+1.  *Start R and use these commands to load this data. The matrix processPredictors contains the 57 predictors (12 describing the input biological material and 45 describing the process predictors) for the 176 manufacturing runs. `yield` contains the percent yield for each run.* 
+
+Loaded above.
+
+2. *A small percentage of cells in the predictor set contain missing values. Use an imputation function to fill in these missing values (e.g., see Sect. 3.8).*
+
+```{r}
+imputed_data <- preProcess(ChemicalManufacturingProcess, method='medianImpute')
+processed_data <- predict(imputed_data, ChemicalManufacturingProcess)
+```
+
+3.  *Split the data into a training and a test set, pre-process the data, and tune a model of your choice from this chapter. What is the optimal value of the performance metric?*
+
+```{r}
+set.seed(123)
+splitIndex <- createDataPartition(processed_data$Yield, p = 0.80, list = FALSE)
+train_data <- processed_data[splitIndex, ]
+test_data <- processed_data[-splitIndex, ]
+```
+
+4.  *Predict the response for the test set. What is the value of the performance metric and how does this compare with the resampled performance metric on the training set?*
+
+
+```{r}
+corr_matrix <- cor(train_data[, -which(names(train_data) == "Yield")])
+highly_correlated <- findCorrelation(corr_matrix, cutoff = 0.75)
+high_corr_vars <- names(train_data)[-1][highly_correlated]  # -1 to leave the Yield column
+
+train_data_reduced <- train_data[, !(names(train_data) %in% high_corr_vars)]
+test_data_reduced <- test_data[, !(names(test_data) %in% high_corr_vars)]
+
+linearModel <- lm(Yield ~ ., data = train_data_reduced)
+
+model_summary <- summary(linearModel)
+r_squared <- model_summary$r.squared
+adjusted_r_squared <- model_summary$adj.r.squared
+
+predictions_train <- predict(linearModel, newdata = train_data_reduced)
+predictions_lr <- predict(linearModel, newdata = test_data_reduced)
+mse_lr <- mean((test_data_reduced$Yield - predictions_lr) ^ 2)
+mse_train <- mean((train_data_reduced$Yield - predictions_train) ^ 2)
+
+
+cat(sprintf("Train - R^2: %.3f, MSE: %.3f\nTest  - R^2: %.3f, Adjusted R^2: %.3f, MSE: %.3f", 
+r_squared, mse_train, r_squared, adjusted_r_squared, mse_lr))
+
+```
+
+Basically, 75% of the variability in the Yield can be explained by the model's predictors during training. And when we test it, we still get the same thing. This is a pretty stable model. 
+
+
+5.  *Which predictors are most important in the model you have trained? Do either the biological or process predictors dominate the list?*
+
+Looks like manufacturing is more important, 18 of the top 20. 
+
+```{r}
+model_summary <- summary(linearModel)
+coefficients_table <- model_summary$coefficients
+# largest effect size first
+sorted_coefficients <- coefficients_table[order(abs(coefficients_table[, "Estimate"]), decreasing = TRUE), ]
+head(sorted_coefficients, n=10)
+```
+
+6.  *Explore the relationships between each of the top predictors and the response. How could this information be helpful in improving yield in future runs of the manufacturing process?*
+
+I don't know this data or these processes, maybe MFP36 is adding an explosion proof box around an experiment, because when when it blows up, it blows up bad. We should know stuff like that before making blind recommendations. But logically, if we have a negative coefficient or a negative slope, that means it's bad for yield, so do less of that. If it has a positive slope, do more of it. 
+
+```{r warning=FALSE, message=FALSE, fig.width=9}
+process_variables <- c("ManufacturingProcess36", "ManufacturingProcess34", "ManufacturingProcess03", "ManufacturingProcess37", "BiologicalMaterial09","ManufacturingProcess41")
+
+plots <- list()
+
+get_plot <- function(data, variable_name) {
+  p <- ggplot(data, aes(x = !!sym(variable_name), y = Yield)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE, color = "blue", message = FALSE) + # Suppress the message
+    labs(x = variable_name, y = "Yield") +
+    theme_minimal()
+  return(p)
+}
+
+for (var in process_variables) {
+  plots[[var]] <- get_plot(train_data, var)
+}
+
+(plots[[process_variables[1]]] | plots[[process_variables[2]]] | plots[[process_variables[3]]]) /
+(plots[[process_variables[4]]] | plots[[process_variables[5]]] | plots[[process_variables[6]]])
+
+
 ```
