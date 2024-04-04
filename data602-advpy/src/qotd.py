@@ -724,3 +724,18 @@ plt.show()
 # How can you use python libraries such as matplotlib, seaborn, plotly, etc. to incorporate this data-ink ratio in your visualizations?
 #
 # I don't quite understand the wording of that question. I think a better question is, with respect to the data-ink ratio, what can we do with our plots and charts to make graphics more legible. The answer is pretty simple, keep the chart to just the fact you are trying to show. Filter out everything that isn't exactly what you want to show. If your graphic is exploratory and you're not showing something specific, even then show just the exploratory data you are showcasing and nothing else (except labels and legends) 
+
+
+# 1. How do you plot a histogram in Seaborn?  
+
+import requests
+parking_ticket_data = "https://data.cityofnewyork.us/resource/pvqr-7yc4.json"
+resp = requests.get(url=parking_ticket_data, limit=5000)
+pt = resp.json() # Check the JSON Response Content documentation below
+
+# 2. Plot a histogram with NAs dropped.
+# 3. How do you set the color for a histogram?
+# 4.  What type of plot would allow you to compare two continuous features?  Give an example of code.
+# 5. Give example of a correlation plot.
+# 6. Change the figure size of your plot(s).
+

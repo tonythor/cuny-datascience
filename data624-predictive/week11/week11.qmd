@@ -1,0 +1,26 @@
+---
+title: "Week 11 Non-Linear Regression"
+author: "By Tony Fraser"
+date: "7 April 2024"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+```{r load_libraries, message=FALSE, warning=FALSE}
+library(AppliedPredictiveModeling)
+library(caret)
+library(pls)
+library(patchwork)
+library(lubridate)
+library(scales)
+library(ggplot2)
+library(dplyr)
+library(randomForest)
+options(scipen=999)
+data(permeability)
+data(ChemicalManufacturingProcess)
+```
+
+## 6.2 Permeability and Fingerprints
