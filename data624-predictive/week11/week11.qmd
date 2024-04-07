@@ -10,7 +10,6 @@ format:
 ---
 ```{r load_libraries, message=FALSE, warning=FALSE}
 library(AppliedPredictiveModeling)
-library(caret)
 library(pls)
 library(patchwork)
 library(lubridate)
@@ -18,9 +17,252 @@ library(scales)
 library(ggplot2)
 library(dplyr)
 library(randomForest)
-options(scipen=999)
-data(permeability)
+library(pdp)
+library(caret)
+library(earth) 
 data(ChemicalManufacturingProcess)
+options(scipen=999)
 ```
 
-## 6.2 Permeability and Fingerprints
+# 7.2 mlbench simulation practice 
+
+**Use mlbench.friedman1 to simulate data, and then tune models to it.**
+
+```{r buildTrainingData}
+library(mlbench)
+set.seed(200)
+trainingData <- mlbench.friedman1(200, sd = 1)
+testData <- mlbench.friedman1(5000, sd = 1)
+testData$x <- data.frame(testData$x)
+trainingData$x <- data.frame(trainingData$x)
+featurePlot(trainingData$x, trainingData$y)
+```
+
+## Tune multiple models
+
+```{r trainTheModels, messages=FALSE, warning=FALSE}
+#KNN
+knnModel <- train(x = trainingData$x,
+                  y = trainingData$y,
+                  method = "knn",
+                  preProc = c("center", "scale"),
+                  tuneLength = 5)
+knnPred <- predict(knnModel, newdata = testData$x)
+knnMetrics <- postResample(pred = knnPred, obs = testData$y)
+
+#MARS
+marsModel <- train(x = trainingData$x,
+                   y = trainingData$y,
+                   method = "earth",
+                   preProc = c("center", "scale"),
+                   tuneLength = 5)
+
+marsPred <- predict(marsModel, newdata = testData$x)
+marsMetrics <- postResample(pred = marsPred, obs = testData$y)
+
+#neural net
+nnModel <- train(x = trainingData$x,
+                 y = trainingData$y,
+                 method = "nnet",
+                 preProcess = c("center", "scale"),
+                 tuneLength = 5, 
+                 trace = FALSE)
+nnPred <- predict(nnModel, newdata = testData$x)
+nnMetrics <- postResample(pred = nnPred, obs = testData$y)
+
+## svm
+svmModel <- train(x = trainingData$x,
+                  y = trainingData$y,
+                  method = "svmRadial",
+                  preProcess = c("center", "scale"),
+                  tuneLength = 5)
+svmPred <- predict(svmModel, newdata = testData$x)
+svmMetrics <- postResample(pred = svmPred, obs = testData$y)
+
+## rf
+library(randomForest)
+
+rfModel <- train(x = trainingData$x,
+                 y = trainingData$y,
+                 method = "rf",
+                 preProcess = c("center", "scale"),
+                 tuneLength = 5)
+rfPred <- predict(rfModel, newdata = testData$x)
+rfMetrics <- postResample(pred = rfPred, obs = testData$y)
+
+modelPerformance <- data.frame(
+  RMSE = c(knnMetrics[1], marsMetrics[1], nnMetrics[1], svmMetrics[1], rfMetrics[1]),
+  Rsquared = c(knnMetrics[2], marsMetrics[2], nnMetrics[2], svmMetrics[2], rfMetrics[2]),
+  MAE = c(knnMetrics[3], marsMetrics[3], nnMetrics[3], svmMetrics[3], rfMetrics[3]),
+  row.names = c("KNN", "MARS", "NeuralNetwork", "SVM", "RF")
+)
+modelPerformance
+
+
+```
+
+## More on Mars
+
+**Which works best?**Which models appear to give the best performance? Does MARS select the informative predictors (those named X1–X5)?**
+
+Mars performs best. And yes, those are all selected. 
+
+```{r summaryMarsModel}
+summary(marsModel)
+```
+
+# 7.5. Chemical Manufacturing 
+**Exercise 6.3 describes data for a chemical manufacturing process. Use the same data imputation, data splitting, and pre-processing steps as before and train several nonlinear regression models.**
+```{r chemicalManufacturing, warning=FALSE, message=FALSE}
+
+imputed_data <- preProcess(ChemicalManufacturingProcess, method='medianImpute')
+processed_data <- predict(imputed_data, ChemicalManufacturingProcess)
+
+set.seed(123)
+splitIndex <- createDataPartition(processed_data$Yield, p = 0.80, list = FALSE)
+train_data <- processed_data[splitIndex, ]
+test_data <- processed_data[-splitIndex, ]
+
+# KNN
+knnModel <- train(Yield ~ ., data = train_data,
+                  method = "knn",
+                  preProcess = c("center", "scale"),
+                  tuneLength = 5)
+knnPred <- predict(knnModel, newdata = test_data)
+knnMetrics <- postResample(pred = knnPred, obs = test_data$Yield)
+
+# MARS
+marsModel <- train(Yield ~ ., data = train_data,
+                   method = "earth",
+                   preProcess = c("center", "scale"),
+                   tuneLength = 5)
+marsPred <- predict(marsModel, newdata = test_data)
+marsMetrics <- postResample(pred = marsPred, obs = test_data$Yield)
+
+# Neural Network
+# nnModel <- train(Yield ~ ., data = train_data,
+#                  method = "nnet",
+#                  preProcess = c("center", "scale"),
+#                  tuneLength = 5, 
+#                  trace = FALSE)
+# nnPred <- predict(nnModel, newdata = test_data)
+# nnMetrics <- postResample(pred = nnPred, obs = test_data$Yield)
+# NeuralNetwork [RMSE: 39.146857 RSquared:NA  MAE: 39.1046875]
+
+nnModel <- train(Yield ~ ., data = train_data,
+                 method = "nnet",
+                 preProcess = c("center", "scale"),
+                 tuneGrid = expand.grid(.size = 10,  # Select a specific number of neurons
+                                    .decay = 0.01),  # Select a specific decay parameter
+                 trControl = trainControl(method = "none"),
+                 maxit = 1000,  # Maximum iterations
+                 trace = FALSE)
+
+# SVM
+svmModel <- train(Yield ~ ., data = train_data,
+                  method = "svmRadial",
+                  preProcess = c("center", "scale"),
+                  tuneLength = 5)
+svmPred <- predict(svmModel, newdata = test_data)
+svmMetrics <- postResample(pred = svmPred, obs = test_data$Yield)
+
+
+# Random Forest
+rfModel <- train(Yield ~ ., data = train_data,
+                 method = "rf",
+                 preProcess = c("center", "scale"),
+                 tuneLength = 5)
+rfPred <- predict(rfModel, newdata = test_data)
+rfMetrics <- postResample(pred = rfPred, obs = test_data$Yield)
+
+# Combine model performance metrics
+modelPerformance <- data.frame(
+  RMSE = c(knnMetrics[1], marsMetrics[1], nnMetrics[1], svmMetrics[1], rfMetrics[1]),
+  Rsquared = c(knnMetrics[2], marsMetrics[2], nnMetrics[2], svmMetrics[2], rfMetrics[2]),
+  MAE = c(knnMetrics[3], marsMetrics[3], nnMetrics[3], svmMetrics[3], rfMetrics[3]),
+  row.names = c("KNN", "MARS", "NeuralNetwork", "SVM", "RF")
+)
+
+modelPerformance
+
+```
+
+### Which works best?
+**Which nonlinear regression model gives the optimal resampling and test set performance?**
+
+LR performs better, though I didn't try any cross validation. Let's try it. 
+
+```{r, messages=FALSE, warning=FALSE}
+rfModel <- train(Yield ~ ., data = train_data,
+                 method = "rf",
+                 trainControl="cv",
+                 preProcess = c("center", "scale"),
+                 tuneLength = 5)
+rfPred <- predict(rfModel, newdata = test_data)
+postResample(pred = rfPred, obs = test_data$Yield)
+```
+
+The Random Forest model, with resampling (cross-validation) performs slightly less accurately then when it isn't validated. This slight decrease in performance metrics is supposedly typical, and often more representative of how the model will perform in real-world scenarios.
+
+
+### Important Predictors
+**Which predictors are most important in the optimal nonlinear regression model? Do either the biological or process variables dominate the list? How do the top ten important predictors compare to the top ten predictors from the optimal linear model?**
+
+At least in the top 12, about 2/3rds are manufacturing in RF. What I find more interesting though is that they are so different beyond the first variable or two. Wow, math is strange. 
+
+```{r top10Times2, echo=FALSE, message=FALSE, warning=FALSE}
+
+impRf <- varImp(rfModel)$importance |> 
+   arrange(desc(Overall)) |>
+   head(12)
+
+impSvm <- varImp(svmModel)$importance |>  
+    arrange(desc(Overall)) |>
+   head(12)
+
+print(impRf)
+print(impSvm)
+
+```
+
+### Plots
+**Explore the relationships between the top predictors and the response for the predictors that are unique to the optimal nonlinear regression model. Do these plots reveal intuition about the biological or process predictors and their relationship with yield?**
+
+You're supposed to be able to use Partial Dependency Plots, (PDPs,) to show how each predictor affects the model's target prediction. A flat line supposedly suggests that a predictor has little or no effect on the prediction. We have two flat lines. But those 37 and 32 records definitely do have impact. Those two facts together are supposed to tell me there are other relationships not captured within this data set. Ok, I knew that going in.
+
+No, this doesn't help my intuition. I wish we were practicing on a dataset with stronger relationships so I could see more visible patterns and get a feel for what relationships look and feel like. This dataset doesn't have strong relationships. It might be a good dataset to become an expert in, maybe a chemist or something, but for somebody trying to learn what relationships are supposed to look and feel like, this me little and doesn't seem to register on any intuition.  
+
+All good though, I learned a lot about looking up results. 
+
+
+```{r plottingVariables}
+
+
+top_important_vars <- rownames(impRf)[order(-impRf$Overall)][1:3]
+
+pdp_plot1 <- ggplot(partial(rfModel, pred.var = top_important_vars[1]), aes(x = ManufacturingProcess32, y = yhat)) +
+  geom_line() +
+  ggtitle(paste("Partial Dependence Plot for", top_important_vars[1])) +
+  xlab(top_important_vars[1]) +
+  ylab("Partial Dependence")
+
+pdp_plot2 <- ggplot(partial(rfModel, pred.var = top_important_vars[2]), aes(x = top_important_vars[2], y = yhat)) +
+  geom_line() +
+  ggtitle(paste("Partial Dependence Plot for", top_important_vars[2])) +
+  xlab(top_important_vars[2]) +
+  ylab("Partial Dependence")
+
+pdp_plot3 <- ggplot(partial(rfModel, pred.var = top_important_vars[3]), aes(x = top_important_vars[3], y = yhat)) +
+  geom_line() +
+  ggtitle(paste("Partial Dependence Plot for", top_important_vars[3])) +
+  xlab(top_important_vars[3]) +
+  ylab("Partial Dependence")
+
+# Combine the plots side by side using patchwork
+combined_plot <- pdp_plot1 + pdp_plot2 + pdp_plot3 +
+  plot_layout(ncol = 3)
+
+# Print the combined plot
+combined_plot
+
+```
