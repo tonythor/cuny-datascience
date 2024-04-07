@@ -724,3 +724,56 @@ plt.show()
 # How can you use python libraries such as matplotlib, seaborn, plotly, etc. to incorporate this data-ink ratio in your visualizations?
 #
 # I don't quite understand the wording of that question. I think a better question is, with respect to the data-ink ratio, what can we do with our plots and charts to make graphics more legible. The answer is pretty simple, keep the chart to just the fact you are trying to show. Filter out everything that isn't exactly what you want to show. If your graphic is exploratory and you're not showing something specific, even then show just the exploratory data you are showcasing and nothing else (except labels and legends) 
+
+
+
+# 1. How do you plot a histogram in Seaborn?  
+# 2. Plot a histogram with NAs dropped.
+# 3. How do you set the color for a histogram?
+import pandas as pd
+import seaborn as sns 
+from sodapy import Socrata
+import matplotlib.pyplot as plt
+client = Socrata("data.cityofnewyork.us", None)
+results = client.get("pvqr-7yc4", limit=5000)
+results_df = pd.DataFrame.from_records(results) 
+results_df['vehicle_year'] = pd.to_numeric(results_df['vehicle_year'], errors='coerce')
+filtered_df = results_df[(results_df['vehicle_year'] >= 1920) & (results_df['vehicle_year'] <= 2024)]
+cleaned_df = filtered_df.dropna(subset=['vehicle_year']) #<- drop NA
+plt.figure(figsize=(10, 6))
+sns.histplot(cleaned_df['vehicle_year'], bins=(2024 - 1920), kde=False, color="olive") #<- army green
+plt.title('Histogram of Vehicle Years in Violations Data (1920-2024)')
+plt.xlabel('Vehicle Year')
+plt.ylabel('Frequency')
+plt.show()
+
+
+# 4.  What type of plot would allow you to compare two continuous features?  
+## Scatterplots, maybe feet from curb, to year of car? Maybe older cars are further from the curb.
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+cleaned_df['feet_from_curb'] = pd.to_numeric(cleaned_df['feet_from_curb'], errors='coerce')
+plt.figure(figsize=(10, 6))
+sns.scatterplot(x='vehicle_year', y='feet_from_curb', data=cleaned_df)
+plt.title('Vehicle Year vs. Feet From Curb')
+plt.xlabel('Vehicle Year')
+plt.ylabel('Feet From Curb')
+plt.show()
+
+# 5. Give example of a correlation plot.
+# 6. Change the figure size of your plot(s).
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+cleaned_df_is_numeric = cleaned_df.apply(pd.to_numeric, errors='coerce')
+cleaned_df_is_numeric = cleaned_df_is_numeric.dropna(axis=1, how='all')
+correlation_matrix = cleaned_df_is_numeric.corr()
+mask = np.triu(np.ones_like(correlation_matrix, dtype=bool))
+plt.figure(figsize=(12, 8))
+sns.heatmap(correlation_matrix, mask=mask, annot=True, fmt=".2f", cmap="coolwarm", center=0, linewidths=0.5, linecolor='black')
+plt.title('Correlation Matrix of Numeric Features')
+plt.show()
+
+
