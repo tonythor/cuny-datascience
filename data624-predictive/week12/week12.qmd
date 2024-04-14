@@ -1,0 +1,302 @@
+---
+title: "Week 12 Trees and Rules"
+author: "By Tony Fraser"
+date: "14 April 2024"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    number_sections: true
+---
+```{r load_libraries, message=FALSE, warning=FALSE}
+library(caret)  
+library(party) 
+library(dplyr)
+library(pls)  
+library(pdp) 
+library(Cubist)
+library(xgboost)
+library(randomForest)
+options(scipen=999)
+library(earth)
+library(Formula)
+library(plotmo)
+library(plotrix)
+library(DiagrammeR)
+library(AppliedPredictiveModeling)
+data(ChemicalManufacturingProcess)
+```
+
+# 8.1 Simulated Data from Chapter 7
+8.1. Recreate the simulated data from Exercise 7.2:
+```{r simulateData}
+library(mlbench)
+set.seed(200)
+simulated <- mlbench.friedman1(200, sd = 1)
+simulated <- cbind(simulated$x, simulated$y)
+simulated <- as.data.frame(simulated)
+colnames(simulated)[ncol(simulated)] <- "y"
+
+```
+### Fit and Estimate
+*Fit a random forest model to all of the predictors, then estimate the variable importance scores. Did the random forest model significantly use the uninformative predictors (V6 – V10)?* 
+ 
+No, quite the opposite. V1, V2 and V4 are the important predictors. V6, V7, V8, V9, and V10 contribute very little when predicting. 
+
+```{r rf1}
+model1 <- randomForest(y ~ ., data = simulated,
+                              importance = TRUE,
+                              ntree = 1000)
+rfImp1 <- varImp(model1, scale = FALSE)
+print(rfImp1) 
+```
+
+
+### Add an Additional Predictor
+*Now add an additional predictor that is highly correlated with one of the informative predictors. For example: Fit another random forest model to these data. Did the importance score for V1 change? What happens when you add another predictor that is also highly correlated with V1?*
+
+It definitely splits the difference between V1 and the new predictor. Beyond that, the rest of the variables are pretty close to what they were  before.  I suppose that's why they say random forest can handle collinear data better than other models can. 
+
+```{r rf2 }
+simulated$duplicate1 <- simulated$V1 + rnorm(200) * .1
+cor(simulated$duplicate1, simulated$V1)
+
+model2 <- randomForest(y ~ ., data = simulated,
+                              importance = TRUE,
+                              ntree = 1000)
+rfImp2 <- varImp(model2, scale = FALSE)
+print(rfImp2) 
+
+```
+
+### Conditional Inference Trees
+*Use the cforest function in the party package to fit a random forest model using conditional inference trees. The party package function varimp can calculate predictor importance. The conditional argument of that function toggles between the traditional importance measure and the modified version described in Strobl et al. (2007). Do these importances show the same pattern as the traditional random forest model?*
+
+Here's what I found about this test.
+
+1. Using one Mississippi two Mississippi, I found conditional=TRUE to take about 25X longer that conditional=FALSE
+2. the two collinear variables V1 and duplicate1 are very much deprioritized. 
+3. Besides those colinear variables, the relative importance seems somewhat similar. 
+
+
+```{r eval=FALSE, conditionalTrueFalse, warning=FALSE, messages=FALSE}
+
+model3 <- cforest(y ~ ., data = simulated, controls=cforest_unbiased(ntree=1000, mtry=2))
+
+rfImp3False <- varimp(model3, conditional=FALSE) 
+rfImp3False_df <- data.frame(Overall = rfImp3False)
+rownames(rfImp3False_df) <- names(rfImp3False)
+
+rfImp3True <- varimp(model3, conditional=TRUE) 
+rfImp3True_df <- data.frame(Overall = rfImp3True)
+rownames(rfImp3True_df) <- names(rfImp3True)
+
+print(rfImp3False_df)
+print(rfImp3True_df)
+
+```
+
+### Use Boosted and Cubist
+*Repeat this process with different tree models, such as boosted trees and Cubist. Does the same pattern occur? (refer to figure 8.24)*
+
+For both, yes, it's about the same. V1, V2, V4, V5 and duplicate1 are the more used features.
+
+```{r cubistXgBoost, warning=FALSE, messages=FALSE}
+predictors <- simulated[, !names(simulated) %in% "y"]  # This excludes 'y' by name
+modelCubist <- cubist(x = predictors, y = simulated$y, committees = 1)
+
+data_matrix <- xgb.DMatrix(
+  data = as.matrix(simulated[, !names(simulated) %in% "y"]),
+  label = simulated$y
+)
+
+modelXGBoost <- xgboost(data = data_matrix, 
+      max.depth = 6, eta = 0.3, nthread = 2, 
+      nrounds = 100, objective = "reg:squarederror", verbose=0)
+
+importance_matrix <- xgb.importance(
+  feature_names = colnames(simulated[, !names(simulated) %in% "y"]), model = modelXGBoost)
+
+summary(modelCubist) 
+print(importance_matrix)
+```
+
+
+# 8.2 Tree Granularity Bias
+*Use a simulation to show tree bias with different granularity.*
+
+I had difficult time coming up with this until I heard an example that made sense to me. And I'd like to keep this example here in my notes so I can find it later.
+
+Imagine you are trying to decide where to plant different types of plants in a garden based on sunlight and soil type
+
+* Soil type: You have a map that categorizes soil into different types based on its nutrients (granularity varies).
+* Sunlight: Varies continuously throughout the garden.
+
+If your map (granularity of X1) is very detailed, you might focus a lot on tiny differences in soil nutrients and miss broader patterns of sunlight (X2). Conversely, if the soil map is very basic, you might pay more attention to sunlight variations. This is analogous to how decision trees might develop biases based on the characteristics of the data they receive.
+
+```{r decisionTree, fig.height=8, fig.width=9 }
+library(rpart)
+set.seed(123)  # for reproducibility
+
+show_tree <- function(observations, granularity) {
+
+  ## Var 1 - different levesl of granularity. If granularity is 10, X1 will have values like 0, 0.1, 0.2, up to 0.9. If granularity is 100, X1 will have values like 0, 0.01, 0.02, up to 0.99, making it much more detailed.
+  soil_type <- round(runif(observations, 0, 1) * granularity) / granularity
+  
+  ## Var 2, normal distribution data.
+  sunlight <- rnorm(observations)
+
+  Y <- soil_type + sunlight + rnorm(observations, sd=0.5) > 1.5  # Binary outcome
+  
+  # Fit a decision tree, Y = true or false
+  data <- data.frame(soil_type, sunlight, Y)
+  model <- rpart(Y ~ soil_type + sunlight, data=data, method="class")
+  
+  # Plot the tree
+  plot(model)
+  text(model, use.n=TRUE)
+}
+
+show_tree(200, 10) # low granularity
+show_tree(200, 100) # high granularity
+
+```
+
+To explain that, the top tree has a single split. The soil_type variable, which has low granularity, is not used at all. The absence of splits on soil_type could suggest a bias towards the more continuous variable (sunlight), as it didn't find soil_type informative enough due to its coarse categories.
+
+The bottom chart splits on both soil type and sunlight, indicating that the higher granularity of soil_type provided more informative splits. After the initial split, we see splits based on soil_type at soil_type < 0.675 and soil_type < 0.375. These splits are evidence that with more granularity, the soil_type variable becomes informative enough to be used for making decisions. The tree now shows a bias towards using soil_type alongside sunlight, demonstrating that when provided with more detailed categories, the decision tree incorporates soil_type into its model.
+
+
+# 8.3 Gradient Boosting
+*In stochastic gradient boosting, the bagging fraction and learning rate will govern the construction of the trees as they are guided by the gradient. Although the optimal values of these parameters should be obtained through the tuning process, it is helpful to understand how the magnitudes of these parameters affect magnitudes of variable importance. Figure 8.24 provides the variable importance plots for boosting using two extreme values for the bagging fraction (0.1 and 0.9) and the learning rate (0.1 and 0.9) for the solubility data. The left-hand plot has both parameters set to 0.1, and the right-hand plot has both set to 0.9*
+
+*Why does the model on the right focus its importance on just the first few of predictors, whereas the model on the left spreads importance across more predictors?*
+
+This has to do with the bagging fraction. The left has a lower fraction, which means the left was trained on a smaller subset of data. Therefore, it must consider a broad range of predictors to make accurate predictions across the datasets. The one on the right, the algorithm sees mots of the data, which means the model can more reliably find teh right predictors. 
+
+After having gone through all this, I only wonder which model is more accurate. I suppose this is another lever we have at our disposal.
+
+*Which model do you think would be more predictive of other samples?*
+
+According to what I read, the one on the left. It spreads learning across more predictors to learn slowly. The one on the right is a little more fit just to that specific dataset. 
+
+*How would increasing interaction depth affect the slope of predictor importance for either model in Fig. 8.24?*
+
+I think it would impact the one on the left. The one on the right with that .9 is pretty much overfit to that data and not leveraging most of the other features. The column on the left has more room to be impacted. 
+
+
+# 8.7 More On Chemical Manufacturing
+*Refer to Exercises 6.3 and 7.5 which describe a chemical manufacturing process. Use the same data imputation, data splitting, and pre-processing steps as before and train several tree-based models*
+
+I'll pull in the last several, and I'll add in XGBoost. 
+
+```{r chemicals, messages=FALSE, warning=FALSE}
+imputed_data <- preProcess(ChemicalManufacturingProcess, method='medianImpute')
+processed_data <- predict(imputed_data, ChemicalManufacturingProcess)
+set.seed(123)
+splitIndex <- createDataPartition(processed_data$Yield, p = 0.80, list = FALSE)
+train_data <- processed_data[splitIndex, ]
+test_data <- processed_data[-splitIndex, ]
+
+# KNN
+knnModel <- train(Yield ~ ., data = train_data,
+                  method = "knn",
+                  preProcess = c("center", "scale"),
+                  tuneLength = 5)
+knnPred <- predict(knnModel, newdata = test_data)
+knnMetrics <- postResample(pred = knnPred, obs = test_data$Yield)
+
+# MARS
+marsModel <- train(Yield ~ ., data = train_data,
+                   method = "earth",
+                   preProcess = c("center", "scale"),
+                   tuneLength = 5)
+marsPred <- predict(marsModel, newdata = test_data)
+marsMetrics <- postResample(pred = marsPred, obs = test_data$Yield)
+
+# SVM
+svmModel <- train(Yield ~ ., data = train_data,
+                  method = "svmRadial",
+                  preProcess = c("center", "scale"),
+                  tuneLength = 5)
+svmPred <- predict(svmModel, newdata = test_data)
+svmMetrics <- postResample(pred = svmPred, obs = test_data$Yield)
+
+
+# Random Forest
+rfModel <- train(Yield ~ ., data = train_data,
+                 method = "rf",
+                 preProcess = c("center", "scale"),
+                 tuneLength = 5)
+rfPred <- predict(rfModel, newdata = test_data)
+rfMetrics <- postResample(pred = rfPred, obs = test_data$Yield)
+
+# Isn't working through caret, will use directly.
+params <- list(
+    booster = "gbtree",
+    objective = "reg:squarederror",
+    eta = 0.3,
+    max_depth = 6
+)
+dtrain <- xgb.DMatrix(data = as.matrix(train_data[-which(names(train_data) == "Yield")]), 
+                      label = train_data$Yield)
+
+# Train the model
+xgbModel <- xgb.train(params = params, data = dtrain, nrounds = 100)
+
+# Predict
+xgbPred <- predict(xgbModel, as.matrix(test_data[-which(names(test_data) == "Yield")]))
+xgbMetrics <- postResample(pred = xgbPred, obs = test_data$Yield)
+
+
+# Combine model performance metrics
+modelPerformance <- data.frame(
+  RMSE = c(knnMetrics[1], marsMetrics[1],  svmMetrics[1], rfMetrics[1], xgbMetrics[1]),
+  Rsquared = c(knnMetrics[2], marsMetrics[2],  svmMetrics[2], rfMetrics[2], xgbMetrics[2]),
+  MAE = c(knnMetrics[3], marsMetrics[3],  svmMetrics[3], rfMetrics[3],  xgbMetrics[3]),
+  row.names = c("KNN", "MARS", "SVM", "RF", "XGBoost")
+)
+
+modelPerformance
+
+```
+
+### And the winner is
+*Which tree-based regression model gives the optimal resampling and test set performance?*
+
+Wow, XGBoost with the big win! 
+
+### Predictors
+*Which predictors are most important in the optimal tree-based regression model? Do either the biological or process variables dominate the list? How do the top 10 important predictors compare to the top 10 predictors from the optimal linear and nonlinear models?*
+
+The variables are mostly the same, but the order is slightly different. You can see there are little differences between which model puts weight on which features. 
+
+```{r}
+#XGBoost
+importance_matrix <- xgb.importance(feature_names = colnames(dtrain)[!colnames(dtrain) %in% "Yield"], model = xgbModel)
+sorted_importance_matrix <- importance_matrix[order(-importance_matrix$Gain),]
+important_features <- head(sorted_importance_matrix, 10)
+print(important_features)
+
+varImp(rfModel)$importance |> 
+   arrange(desc(Overall)) |>
+   head(10)
+
+```
+
+### Tree Plots
+*Plot the optimal single tree with the distribution of yield in the terminal nodes. Does this view of the data provide additional knowledge about the biological or process predictors and their relationship with yield?*
+
+There are two bits of information that stand out. Firstly, there are only two root nodes that start with **ManufacturingProcess32**. One uses just that as a decision, the second uses several variables. I figured there would have been a lot more trees with that root as the root node. 
+
+Second, **BiologicalMaterial03** and **ManufacturingProcess31** which are the second and third highest gain variables don't seem to be in that second tree MFP32 root node tree at all. This learning model learns from itself after multiple tries, but I thought it would be there.
+
+The exact behavior of how this model works is still a little confusing, so added support for Node 0, 1, and 2. And with the same results, those other important features are still not listed.
+
+
+```{r tree, fig.width=9, fig.height=9}
+trees_data <- xgb.model.dt.tree(feature_names = colnames(dtrain), model = xgbModel)
+trees_with_ManufacturingProcess32 <- unique(trees_data[Feature == 'ManufacturingProcess32' &  (Node == 0 | Node == 1 |Node == 2), "Tree"])
+tree_numbers <- trees_with_ManufacturingProcess32$Tree
+xgb.plot.tree(model = xgbModel, trees = tree_numbers)
+```
