@@ -21,3 +21,5 @@ jupyter
 sodapy
 plotly
 statsmodels
+scikit_learn
+
