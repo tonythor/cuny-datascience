@@ -17,8 +17,8 @@ This our American history, and this assignment, beg a similar question about the
 ##  Plan
 1. Get data
     * Dataset 1: A list of states AND provinces
-    * Dataset 2: IIJA funding (Delaware is missing)
-    * Dataset 3: US Census data (Plus, manually find records for missing territories)
+    * Dataset 2: IIJA funding (Note that Delaware is missing)
+    * Dataset 3: [US Census data](https://www.census.gov/data/tables/time-series/demo/popest/2020s-state-total.html) (Plus, manually find records for missing territories)
 2. Clean (column names, spaces, etc.)
 3. Join states to funding to population
 4. Build calculated columns for expected_funding, funding_difference, and percentage_difference
