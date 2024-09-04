@@ -32,7 +32,7 @@ This our American history, and this assignment, beg a similar question about the
 
 We'll use python for cleaning because it works with Quarto. 
 
-```{python}
+```python
 import pandas as pd
 merged_fn = './story1_files/merged_states_funding_population.csv'
 
