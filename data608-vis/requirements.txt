@@ -1,0 +1,13 @@
+pip
+ipython
+wheel
+numpy
+pandas
+plotly==5.13.1
+jupyter
+seaborn
+scipy
+ipykernel
+sympy
+matplotlib 
+openpyxl

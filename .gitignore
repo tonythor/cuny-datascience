@@ -1,4 +1,7 @@
 .venv/*
+data608-vis/.venv/
+data608-vis/.venv/
+
 *nogit*
 *.DS_Store*
 .Rproj.user
