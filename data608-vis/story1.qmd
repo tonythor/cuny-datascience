@@ -8,6 +8,11 @@ python:
   executable: .venv/bin/python
 ---
 
+On [github](https://github.com/tonythor/cuny-datascience/tree/develop/data608-vis) 
+
+\newpage
+
+
 ## Introduction
 After the Great Depression, Franklin D. Roosevelt, a New Yorker, created many jobs through public works programs such as the Works Progress Administration (WPA), the Civilian Conservation Corps (CCC), and the Public Works Administration (PWA). Around the same time, another New Yorker, Robert Moses, began rising in NYC politics. As more money became available through the New Deal, Moses expanded his team of architects, proposed more plans, and directed significant portions of New Deal funds to New York. Eventually, Robert Moses became one of the most prolific urban planners in history and one of the most powerful figures in NYC politics. In the end, close to 15% of all New Deal money was allocated to New York City and its surrounding infrastructure.
 
@@ -18,6 +23,7 @@ This our American history, and this assignment, beg a similar question about the
     * Dataset 1: A list of states AND provinces
     * Dataset 2: IIJA funding (Note that Delaware is missing)
     * Dataset 3: [US Census data](https://www.census.gov/data/tables/time-series/demo/popest/2020s-state-total.html) (Plus, manually find records for missing territories)
+    * Dataset 4: A manually put together CSV of electoral college results from 2022, built from wikipedia and manual googling. 
 2. Clean (column names, spaces, etc.)
 3. Join states to funding to population
 4. Build calculated columns for expected funding, funding difference, and percentage difference
@@ -25,18 +31,21 @@ This our American history, and this assignment, beg a similar question about the
 6. Chart in Excel, save screen shots into [./story1_files/](https://github.com/tonythor/cuny-datascience/tree/develop/data608-vis/story1_files) 
 7. Do the assignment -- add the two charts and write the conclusion
 9. Quarto publish to build final [story1.pdf](https://github.com/tonythor/cuny-datascience/blob/develop/data608-vis/story1.pdf)
+10. filter this document to the last three pages, manually save as a PDF. 
 10. Push all to [github](https://github.com/tonythor/cuny-datascience/tree/develop/data608-vis)
 
 ## Data, steps 1 - 5 
 
 We'll use python for cleaning because it works with Quarto. 
 
-```python
+```{python}
 import pandas as pd
+
 merged_fn = './story1_files/merged_states_funding_population.csv'
 
 funding_df = pd.read_excel('./story1_files/IIJA FUNDING AS OF MARCH 2023.xlsx')
 population_df = pd.read_csv('./story1_files/NST-EST2023-ALLDATA.csv')
+electoral_data = pd.read_csv('./story1_files/electoral_votes_2020.csv')
 
 # We'll use this to see what's missing or incorrect.
 states_list = [
@@ -70,8 +79,9 @@ merged_df = (
     states_df
     .merge(funding_data, on='state', how='left')
     .merge(population_data, on='state', how='left')
-)
+    .merge(electoral_data[['state', 'winning_party']], on='state', how='left')
 
+)
 # step 4 - the calculated columns
 total_population = merged_df['pop_2023'].sum()
 merged_df = (
@@ -79,7 +89,10 @@ merged_df = (
     .assign(
         expected=lambda df: (df['pop_2023'] / total_population) * df['actual'].sum(),
         diff=lambda df: df['actual'] - df['expected'],
-        percent_diff=lambda df: (df['diff'] / df['expected']) * 100
+        percent_diff=lambda df: (df['diff'] / df['expected']) * 100,
+        color=lambda df: df['winning_party'].apply(
+            lambda x: 'red' if x == 'republican' else ('blue' if x == 'democrat' else 'gray')
+        )
     )
     .round({'expected': 2, 'diff': 2, 'percent_diff': 2}) 
 )
@@ -87,7 +100,7 @@ merged_df = (
 merged_df.to_csv(merged_fn, index=False)
 
 # data looks like this.
-# state,    actual, pop_2023, expected, diff,  percent_diff
+# state,    actual, pop_2023, expected, diff,  percent_diff, winning_party
 # alabama,  3.0,    5108468,  2.9,      0.1,   3.45
 # alaska,   3.7,    733406,   0.42,     3.28,  788.71
 # arizona,  3.5,    7431344,  4.22,     -0.72, -17.03
@@ -108,4 +121,4 @@ All above work is only in the spirit of "showing your work."  The actual assignm
 \newpage
 
 ## Conclusion
-Neither of these charts demonstrates a strictly proportional relationship between state population size and money distributed for IIJA projects. For example, Alaska, with a relatively small population, receives significantly more funding than expected, potentially for reasons like infrastructure and energy projects that could impact gas prices. Several traditionally Republican-leaning states are at the top of the spending list, while Democratic-leaning states like New York and California show slight underspending relative to population. Although the reasons for this distribution are unclear without further review of individual projects, the current pattern could suggest decisions aligned with specific political or economic strategies of the Democratic administration.
+These charts show that IIJA funding distribution is not strictly proportional to state population. Smaller states like Alaska receive more than expected, likely due to infrastructure or energy-related projects. Republican-leaning states appear to benefit more overall, while large Democratic states like California and New York receive slightly less relative to their population. The reasons behind this funding distribution may reflect political or economic priorities of the current administration.
