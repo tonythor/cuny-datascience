@@ -11,3 +11,5 @@ ipykernel
 sympy
 matplotlib 
 openpyxl
+matplotlib
+tk
