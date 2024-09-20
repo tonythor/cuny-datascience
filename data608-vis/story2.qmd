@@ -1,0 +1,112 @@
+---
+title: "Story 2"
+author: "Tony Fraser"
+date: "19/Sept/2024"
+output:
+  pdf_document: default
+  latex_engine: xelatex
+monofontoptions: 
+  - Scale=0.55
+editor_options: 
+  chunk_output_type: console
+---
+
+# Overview
+```{r imports}
+library(blsAPI)
+library(dplyr)
+library(jsonlite)
+library(tibble)
+library(fredr) 
+library(lubridate)
+```
+
+```{r}
+cpi_series_id <- 'CUSR0000SA0'
+# Description: CPI for All Urban Consumers (CPI-U), Seasonally Adjusted.
+# This data measures inflation and the cost of living over time.
+
+unemp_series_id <- 'LNS14000000'
+# Description: Unemployment Rate for persons aged 16 years and older.
+# This series tracks the unemployment rate, seasonally adjusted.
+
+start_year <- 1998
+end_year <- 2024
+
+get_bls_data <- function(series_id, start_year, end_year) { 
+  api_key <- readLines("keys/nogit.bls.api.key.32charslong")
+  combined_data <- tibble() 
+  
+  # Loop through years in 20-year chunks
+  for (year in seq(start_year, end_year, by = 20)) {
+    chunk_end_year <- min(year + 19, end_year)
+    payload <- list(
+      'seriesid' = series_id,
+      'startyear' = as.character(year),
+      'endyear' = as.character(chunk_end_year),
+      'registrationkey' = api_key
+    )
+    
+    # Call BLS API
+    response <- blsAPI(payload = payload, api_version = 2)
+    
+    # Parse the JSON response
+    response_json <- fromJSON(response, flatten = TRUE)
+    
+    # Extract and clean data
+    chunk_data <- response_json$Results$series$data[[1]] %>%
+      select(year, period, periodName, value) %>%
+      mutate(value = as.numeric(value)) %>%  # Ensure 'value' is numeric for analysis 
+      rename(month = periodName) %>%
+      mutate(
+        date = ymd(paste(year, month, "01", sep = "-"))  # Create a date using year-month-day format
+      ) %>% 
+      select('date', 'year', 'month', 'value') %>%
+      as_tibble()
+    
+    # Combine the chunk with the existing data
+    combined_data <- bind_rows(combined_data, chunk_data)
+  }    
+  return(combined_data)
+}
+
+get_fred_data <- function(series_id, start_year, end_year) { 
+  fredr_set_key(readLines("keys/nogit.fred.api.key.32charslong"))
+  combined_data <- tibble() 
+  
+  # Loop through the years in 20-year chunks (if needed for larger series)
+  for (year in seq(start_year, end_year, by = 20)) {
+    chunk_end_year <- min(year + 19, end_year)
+    
+    # Call the FRED API
+    chunk_data <- fredr(
+      series_id = series_id,
+      observation_start = as.Date(paste0(year, "-01-01")),
+      observation_end = as.Date(paste0(chunk_end_year, "-12-31"))
+    ) %>%
+    select(date, value) %>%  # Select the columns you want
+    mutate(year = format(as.Date(date), "%Y")) %>%  # Extract year for consistency
+    rename(federal_funds_rate = value) %>% 
+   mutate(
+    year = format(date, "%Y"),      # Extract year from the date
+    month = format(date, "%B")      # Extract full month name from the date
+    ) %>%
+    select('date', 'year', 'month', 'federal_funds_rate') %>%
+    as_tibble()
+    
+    # Combine the chunk with the existing data
+    combined_data <- bind_rows(combined_data, chunk_data)
+  }
+  return(combined_data)
+}
+
+cpi_data <- get_bls_data(cpi_series_id , start_year, end_year) %>% 
+  rename(consumer_price_index = value)
+
+unemp_data <- get_bls_data(unemp_series_id ,start_year, end_year) %>%
+  rename(unemployment_rate = value)
+
+fed_data <- get_fred_data("FEDFUNDS", start_year, end_year)
+
+```
+
