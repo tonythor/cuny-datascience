@@ -1,11 +1,12 @@
 ---
-title: " Story 1: Infrastructure Investment and Jobs Act Funding Allocation to Population"
-author: "By Tony Fraser"
-date: "4 Sept 2024"
-format: pdf
-python:
-  version: 3.11
-  executable: .venv/bin/python
+title: "Story 2"
+author: "Tony Fraser"
+date: "19/Sept/2024"
+output: pdf
+monofontoptions: 
+  - Scale=0.55
+editor_options: 
+  chunk_output_type: console
 ---
 
 On [github](https://github.com/tonythor/cuny-datascience/tree/develop/data608-vis) 

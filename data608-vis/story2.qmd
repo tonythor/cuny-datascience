@@ -3,41 +3,46 @@ title: "Story 2"
 author: "Tony Fraser"
 date: "19/Sept/2024"
 output:
-  pdf_document: default
-  latex_engine: xelatex
-monofontoptions: 
-  - Scale=0.55
-editor_options: 
-  chunk_output_type: console
+  pdf_document:
+    latex_engine: xelatex
+header-includes:
+  - \usepackage{graphicx}
+  - \usepackage{mdframed}
 ---
 
-# Overview
-```{r imports}
+# Requesting API Credit
+I did full integrations with FRED and BLS to power this chart. You can this code as well if you store your keys in the same place. 
+
+# Assignment 
+
+The Federal Reserve's mandate from Congress is to control inflation and to maintain low unemployment. These seem to be contradictory objectives. Has the FED been able to fulfill the mandate given to it by Congress?
+
+\newpage
+
+```{r build_dataset, message=FALSE, warning=FALSE, echo=FALSE}
 library(blsAPI)
+library(fredr) 
 library(dplyr)
 library(jsonlite)
 library(tibble)
-library(fredr) 
 library(lubridate)
-```
 
-```{r}
 cpi_series_id <- 'CUSR0000SA0'
-# Description: CPI for All Urban Consumers (CPI-U), Seasonally Adjusted.
-# This data measures inflation and the cost of living over time.
+# CPI for All Urban Consumers (CPI-U), seasonally adjusted.
+# measures inflation and the cost of living over time.
 
 unemp_series_id <- 'LNS14000000'
-# Description: Unemployment Rate for persons aged 16 years and older.
-# This series tracks the unemployment rate, seasonally adjusted.
+# unemployment rate for peple over 16, seasonally adjusted.
 
 start_year <- 1998
 end_year <- 2024
 
+
 get_bls_data <- function(series_id, start_year, end_year) { 
-  api_key <- readLines("keys/nogit.bls.api.key.32charslong")
-  combined_data <- tibble() 
+  api_key <- readLines("../keys/nogit-bls-api-key-32charslong")
+  combined_data <- tibble()  # <- empty struct for partitioning 
   
-  # Loop through years in 20-year chunks
+  # api limit -> loop through the years in 20-year chunks 
   for (year in seq(start_year, end_year, by = 20)) {
     chunk_end_year <- min(year + 19, end_year)
     payload <- list(
@@ -47,45 +52,42 @@ get_bls_data <- function(series_id, start_year, end_year) {
       'registrationkey' = api_key
     )
     
-    # Call BLS API
+    # call the api
     response <- blsAPI(payload = payload, api_version = 2)
-    
-    # Parse the JSON response
     response_json <- fromJSON(response, flatten = TRUE)
     
-    # Extract and clean data
+    # Extract and straighten
     chunk_data <- response_json$Results$series$data[[1]] %>%
       select(year, period, periodName, value) %>%
-      mutate(value = as.numeric(value)) %>%  # Ensure 'value' is numeric for analysis 
+      mutate(value = as.numeric(value)) %>%  
       rename(month = periodName) %>%
       mutate(
-        date = ymd(paste(year, month, "01", sep = "-"))  # Create a date using year-month-day format
+        # Create a date using year-month-day format
+        date = ymd(paste(year, month, "01", sep = "-"))  
       ) %>% 
       select('date', 'year', 'month', 'value') %>%
       as_tibble()
     
-    # Combine the chunk with the existing data
+     # Combine with root partition
     combined_data <- bind_rows(combined_data, chunk_data)
   }    
   return(combined_data)
 }
 
 get_fred_data <- function(series_id, start_year, end_year) { 
-  fredr_set_key(readLines("keys/nogit.fred.api.key.32charslong"))
-  combined_data <- tibble() 
-  
-  # Loop through the years in 20-year chunks (if needed for larger series)
+  fredr_set_key(readLines("../keys/nogit-fred-api-key-32charslong"))
+  combined_data <- tibble()  # <- empty struct for partitioning 
+
+  # api limit -> loop through the years in 20-year chunks 
   for (year in seq(start_year, end_year, by = 20)) {
     chunk_end_year <- min(year + 19, end_year)
-    
-    # Call the FRED API
     chunk_data <- fredr(
       series_id = series_id,
       observation_start = as.Date(paste0(year, "-01-01")),
       observation_end = as.Date(paste0(chunk_end_year, "-12-31"))
     ) %>%
     select(date, value) %>%  # Select the columns you want
-    mutate(year = format(as.Date(date), "%Y")) %>%  # Extract year for consistency
+    mutate(year = format(as.Date(date), "%Y")) %>% 
     rename(federal_funds_rate = value) %>% 
    mutate(
     year = format(date, "%Y"),      # Extract year from the date
@@ -94,12 +96,13 @@ get_fred_data <- function(series_id, start_year, end_year) {
     select('date', 'year', 'month', 'federal_funds_rate') %>%
     as_tibble()
     
-    # Combine the chunk with the existing data
+    # Combine with root partition
     combined_data <- bind_rows(combined_data, chunk_data)
   }
   return(combined_data)
 }
 
+## all these data sets are roughly the same structure. 
 cpi_data <- get_bls_data(cpi_series_id , start_year, end_year) %>% 
   rename(consumer_price_index = value)
 
@@ -107,6 +110,105 @@ unemp_data <- get_bls_data(unemp_series_id ,start_year, end_year) %>%
   rename(unemployment_rate = value)
 
 fed_data <- get_fred_data("FEDFUNDS", start_year, end_year)
+```
+```{r merge_dataframes, message=FALSE, warning=FALSE, echo=FALSE}
+# If the reader of this code is new to api work, this is you do it, 
+# build the date sequence then left join. 
 
+start_date <- as.Date(paste0(start_year, "-01-01"))
+end_date <- min(as.Date(paste0(end_year, "-12-31")), floor_date(Sys.Date(), "month") - months(1))
+
+date_seq <- tibble(
+  date = seq.Date(from = start_date, to = end_date, by = "month"),
+  year = year(date),
+  month = format(date, "%B")  # Get full month name for consistency with other data
+)
+
+merged_data <- date_seq %>%
+  left_join(cpi_data, by = "date") %>%
+  left_join(unemp_data, by = "date") %>%
+  left_join(fed_data, by = "date") %>%
+  select(
+    date,
+    year = year.x,  month = month.x,    # reduce the date columns
+    consumer_price_index,
+    unemployment_rate,
+    federal_funds_rate
+  )
+
+# Data looks like this. 
+#    date        year month     consumer_price_index unemployment_rate
+#    <date>     <dbl> <chr>                    <dbl>             <dbl>
+#  1 1998-01-01  1998 January                   162                4.6
+#  2 1998-02-01  1998 February                  162                4.6
+#  3 1998-03-01  1998 March                     162                4.7
+#  4 1998-04-01  1998 April                     162.               4.3
+#  5 1998-05-01  1998 May                       163.               4.4
+#  6 1998-06-01  1998 June                      163.               4.5
+#  7 1998-07-01  1998 July                      163.               4.5
+#  8 1998-08-01  1998 August                    163.               4.5
+#  9 1998-09-01  1998 September                 164.               4.6
+# 10 1998-10-01  1998 October                   164.               4.5
+# # ℹ 310 more rows
+```
+```{r build_plot2, fig.width=8, fig.height=12, echo=FALSE, message=FALSE, warning=FALSE}
+
+## This is the base R chart. Man what a pain.
+
+png("nogit_tmp_plot.png", width = 800, height = 1200, res = 100)
+
+# Set up the layout with outer margins and adjust margins
+par(mfrow = c(2, 1), oma = c(6, 4, 6, 4), mar = c(4, 4, 2, 2))
+
+# # a sequence of years, by five, better to 
+# years <- seq(from = as.Date("1998-01-01"), to = as.Date("2024-12-31"), by = "5 years")
+
+years <- seq(from = as.Date(paste0(start_year, "-01-01")), 
+             to = as.Date(paste0(end_year, "-12-31")), 
+             by = "5 years")
+
+# Define event dates for 9/11, Financial Crisis, COVID-19
+event_dates <- as.Date(c("2001-09-11", "2008-09-15", "2020-03-11"))
+event_colors <- c("red", "purple", "orange")  # Colors for the events
+
+# Top plot: CPI with gray dotted lines in 5-year increments
+plot(merged_data$date, merged_data$consumer_price_index, type = "l", col = "blue",
+     xlab = "", ylab = "Consumer Price Index (Dollars)", 
+     main = "Consumer Price Index (CPI) Over Time", xaxt = 'n')
+abline(v = years, col = "lightgray", lty = "dotted")  # dotted 5-year lines
+for (i in seq_along(event_dates)) {
+  abline(v = event_dates[i], col = event_colors[i], lty = 2)  # Event lines in both charts
+}
+
+# Bottom plot: unemployment and federal funds 
+plot(merged_data$date, merged_data$unemployment_rate, type = "l", col = "red",
+     xlab = "Date", ylab = "Rate (%)",
+     ylim = range(c(merged_data$unemployment_rate, merged_data$federal_funds_rate)),
+     main = "Unemployment Rate and Federal Funds Rate Over Time", 
+     xaxt = 'n')  # Suppress default x-axis
+lines(merged_data$date, merged_data$federal_funds_rate, type = "l", col = "green")
+abline(v = years, col = "lightgray", lty = "dotted")   # dotted 5-year lines
+for (i in seq_along(event_dates)) {
+  abline(v = event_dates[i], col = event_colors[i], lty = 2)  # Same event lines
+}
+
+# Manually add the x-axis ticks for the years variable
+axis(1, at = years, labels = format(years, "%Y"), las = 1)
+
+# Add the floating legend between the two plots, and spend hours making it fit in the right place.
+par(xpd = NA)  # Allow drawing outside the plot area
+legend("top", inset = c(0, -0.24), legend = c("9/11", "Financial Crisis", "COVID"),
+       col = event_colors, lty = 2, cex = 0.8, horiz = TRUE)
+
+# Add a legend to the bottom plot for Unemployment Rate and Federal Funds Rate
+legend("topright", legend = c("Unemployment Rate", "Federal Funds Rate"),
+       col = c("red", "green"), lty = 1, cex = 0.8)
+
+dev.off()  # Write to file
 ```
 
+\begin{mdframed}[linecolor=black, linewidth=3pt]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{nogit_tmp_plot.png}
+\end{center}
+\end{mdframed}
