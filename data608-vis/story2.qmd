@@ -1,21 +1,29 @@
 ---
 title: "Story 2"
 author: "Tony Fraser"
-date: "19/Sept/2024"
+date: "22/Sept/2024"
 output:
   pdf_document:
     latex_engine: xelatex
+    number_sections: false  # Disable section numbering
 header-includes:
   - \usepackage{graphicx}
   - \usepackage{mdframed}
+  - \usepackage{fancyhdr}
+  - \pagestyle{empty}  # Disable headers and footers
+  - \renewcommand{\thepage}{}
+  - \setcounter{secnumdepth}{0}  # Disable section numbering
 ---
 
 # Requesting API Credit
-I did full integrations with FRED and BLS to power this chart. You can this code as well if you store your keys in the same place. 
+Please find this code in my [github repo](https://github.com/tonythor/cuny-datascience/blob/develop/data608-vis/story2.qmd).
 
 # Assignment 
 
 The Federal Reserve's mandate from Congress is to control inflation and to maintain low unemployment. These seem to be contradictory objectives. Has the FED been able to fulfill the mandate given to it by Congress?
+
+See for yourself, but looks to me like they're pretty good at what they do.
+
 
 \newpage
 
@@ -151,7 +159,7 @@ merged_data <- date_seq %>%
 # 10 1998-10-01  1998 October                   164.               4.5
 # # ℹ 310 more rows
 ```
-```{r build_plot2, fig.width=8, fig.height=12, echo=FALSE, message=FALSE, warning=FALSE}
+```{r build_plot, fig.width=8, fig.height=12, echo=FALSE, message=FALSE, warning=FALSE}
 
 ## This is the base R chart. Man what a pain.
 
