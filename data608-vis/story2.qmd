@@ -15,14 +15,14 @@ header-includes:
   - \setcounter{secnumdepth}{0}  # Disable section numbering
 ---
 
+# Assignment 
+The Federal Reserve's mandate from Congress is to control inflation and to maintain low unemployment. These seem to be contradictory objectives. Has the FED been able to fulfill the mandate given to it by Congress?
+
 # Requesting API Credit
 Please find this code in my [github repo](https://github.com/tonythor/cuny-datascience/blob/develop/data608-vis/story2.qmd).
 
-# Assignment 
-
-The Federal Reserve's mandate from Congress is to control inflation and to maintain low unemployment. These seem to be contradictory objectives. Has the FED been able to fulfill the mandate given to it by Congress?
-
-See for yourself, but looks to me like they're pretty good at what they do.
+# Attempt Number 
+This is my second submission attempt.  
 
 
 \newpage
@@ -142,7 +142,9 @@ merged_data <- date_seq %>%
     consumer_price_index,
     unemployment_rate,
     federal_funds_rate
-  )
+  ) %>%
+  # -> inflation_rate = ((current_cpi - previous_cpi) / previous_cpi) * 100 
+  mutate(inflation_rate = (consumer_price_index - lag(consumer_price_index)) / lag(consumer_price_index) * 100)
 
 # Data looks like this. 
 #    date        year month     consumer_price_index unemployment_rate
@@ -159,18 +161,17 @@ merged_data <- date_seq %>%
 # 10 1998-10-01  1998 October                   164.               4.5
 # # ℹ 310 more rows
 ```
-```{r build_plot, fig.width=8, fig.height=12, echo=FALSE, message=FALSE, warning=FALSE}
 
+```{r buildPlotTwo, fig.width=12, fig.height=14, echo=FALSE, message=FALSE, warning=FALSE}
 ## This is the base R chart. Man what a pain.
+## This is the base R chart.
 
-png("nogit_tmp_plot.png", width = 800, height = 1200, res = 100)
+png("nogit_submission2.png", width = 1200, height = 1200, res = 100)
 
 # Set up the layout with outer margins and adjust margins
-par(mfrow = c(2, 1), oma = c(6, 4, 6, 4), mar = c(4, 4, 2, 2))
+par(mfrow = c(1, 1), oma = c(6, 4, 6, 4), mar = c(4, 4, 2, 2))
 
-# # a sequence of years, by five, better to 
-# years <- seq(from = as.Date("1998-01-01"), to = as.Date("2024-12-31"), by = "5 years")
-
+# Sequence of years by five
 years <- seq(from = as.Date(paste0(start_year, "-01-01")), 
              to = as.Date(paste0(end_year, "-12-31")), 
              by = "5 years")
@@ -179,44 +180,100 @@ years <- seq(from = as.Date(paste0(start_year, "-01-01")),
 event_dates <- as.Date(c("2001-09-11", "2008-09-15", "2020-03-11"))
 event_colors <- c("red", "purple", "orange")  # Colors for the events
 
-# Top plot: CPI with gray dotted lines in 5-year increments
-plot(merged_data$date, merged_data$consumer_price_index, type = "l", col = "blue",
-     xlab = "", ylab = "Consumer Price Index (Dollars)", 
-     main = "Consumer Price Index (CPI) Over Time", xaxt = 'n')
-abline(v = years, col = "lightgray", lty = "dotted")  # dotted 5-year lines
-for (i in seq_along(event_dates)) {
-  abline(v = event_dates[i], col = event_colors[i], lty = 2)  # Event lines in both charts
-}
-
-# Bottom plot: unemployment and federal funds 
+# Plot Unemployment Rate, Federal Funds Rate, and Inflation Rate on the same graph
 plot(merged_data$date, merged_data$unemployment_rate, type = "l", col = "red",
-     xlab = "Date", ylab = "Rate (%)",
-     ylim = range(c(merged_data$unemployment_rate, merged_data$federal_funds_rate)),
-     main = "Unemployment Rate and Federal Funds Rate Over Time", 
-     xaxt = 'n')  # Suppress default x-axis
+     xlab = "Date", ylab = "Rate (%)", cex.lab = 1.2, 
+     ylim = range(c(merged_data$unemployment_rate, merged_data$federal_funds_rate, merged_data$inflation_rate), na.rm = TRUE),
+     main = "Unemployment, Federal Funds, and Inflation Rates Over Time", xaxt = 'n')
+
+# Add other lines to the same chart
 lines(merged_data$date, merged_data$federal_funds_rate, type = "l", col = "green")
+lines(merged_data$date, merged_data$inflation_rate, type = "l", col = "blue")
+
+# Add vertical lines for events
 abline(v = years, col = "lightgray", lty = "dotted")   # dotted 5-year lines
 for (i in seq_along(event_dates)) {
-  abline(v = event_dates[i], col = event_colors[i], lty = 2)  # Same event lines
+  abline(v = event_dates[i], col = event_colors[i], lty = 2)  # Event lines
 }
 
 # Manually add the x-axis ticks for the years variable
-axis(1, at = years, labels = format(years, "%Y"), las = 1)
+axis(1, at = years, labels = format(years, "%Y"), las = 1, cex.axis = 0.8)  # las = 1 ensures horizontal labels
 
-# Add the floating legend between the two plots, and spend hours making it fit in the right place.
+# Add the floating legend without border
 par(xpd = NA)  # Allow drawing outside the plot area
-legend("top", inset = c(0, -0.24), legend = c("9/11", "Financial Crisis", "COVID"),
-       col = event_colors, lty = 2, cex = 0.8, horiz = TRUE)
+legend("topleft", legend = c("Unemployment Rate", "Federal Funds Rate", "Inflation Rate"),
+       col = c("red", "green", "blue"), lty = 1, cex = 0.8, bty = "n")  # 'bty = "n"' removes the border
 
-# Add a legend to the bottom plot for Unemployment Rate and Federal Funds Rate
-legend("topright", legend = c("Unemployment Rate", "Federal Funds Rate"),
-       col = c("red", "green"), lty = 1, cex = 0.8)
+# Add a detached legend for the events (9/11, Financial Crisis, COVID-19)
+legend("bottom", inset = c(0, -0.17), legend = c("9/11", "Financial Crisis", "COVID"),
+       col = event_colors, lty = 2, horiz = TRUE, cex = 1.3, bty = "n")  # Event legend without a border
 
-dev.off()  # Write to file
+dev.off()  # Writ
 ```
+\begin{center}
+\includegraphics[width=0.9\textwidth]{nogit_submission2.png}
+\end{center}
 
+
+```{r build_plot, fig.width=8, fig.height=11, echo=FALSE, message=FALSE, warning=FALSE}
+# This is the base R chart on top of chart, my first submission.
+
+# png("nogit_tmp_plot.png", width = 800, height = 1200, res = 100)
+
+# # Set up the layout with outer margins and adjust margins
+# par(mfrow = c(2, 1), oma = c(6, 4, 6, 4), mar = c(4, 4, 2, 2))
+
+# # # a sequence of years, by five, better to 
+# # years <- seq(from = as.Date("1998-01-01"), to = as.Date("2024-12-31"), by = "5 years")
+
+# years <- seq(from = as.Date(paste0(start_year, "-01-01")), 
+#              to = as.Date(paste0(end_year, "-12-31")), 
+#              by = "5 years")
+
+# # Define event dates for 9/11, Financial Crisis, COVID-19
+# event_dates <- as.Date(c("2001-09-11", "2008-09-15", "2020-03-11"))
+# event_colors <- c("red", "purple", "orange")  # Colors for the events
+
+# # Top plot: CPI with gray dotted lines in 5-year increments
+# plot(merged_data$date, merged_data$consumer_price_index, type = "l", col = "blue",
+#      xlab = "", ylab = "Consumer Price Index (Dollars)", 
+#      main = "Consumer Price Index (CPI) Over Time", xaxt = 'n')
+# abline(v = years, col = "lightgray", lty = "dotted")  # dotted 5-year lines
+# for (i in seq_along(event_dates)) {
+#   abline(v = event_dates[i], col = event_colors[i], lty = 2)  # Event lines in both charts
+# }
+
+# # Bottom plot: unemployment and federal funds 
+# plot(merged_data$date, merged_data$unemployment_rate, type = "l", col = "red",
+#      xlab = "Date", ylab = "Rate (%)",
+#      ylim = range(c(merged_data$unemployment_rate, merged_data$federal_funds_rate)),
+#      main = "Unemployment Rate and Federal Funds Rate Over Time", 
+#      xaxt = 'n')  # Suppress default x-axis
+# lines(merged_data$date, merged_data$federal_funds_rate, type = "l", col = "green")
+# abline(v = years, col = "lightgray", lty = "dotted")   # dotted 5-year lines
+# for (i in seq_along(event_dates)) {
+#   abline(v = event_dates[i], col = event_colors[i], lty = 2)  # Same event lines
+# }
+
+# # Manually add the x-axis ticks for the years variable
+# axis(1, at = years, labels = format(years, "%Y"), las = 1)
+
+# # Add the floating legend between the two plots, and spend hours making it fit in the right place.
+# par(xpd = NA)  # Allow drawing outside the plot area
+# legend("top", inset = c(0, -0.24), legend = c("9/11", "Financial Crisis", "COVID"),
+#        col = event_colors, lty = 2, cex = 0.8, horiz = TRUE)
+
+# # Add a legend to the bottom plot for Unemployment Rate and Federal Funds Rate
+# legend("topright", legend = c("Unemployment Rate", "Federal Funds Rate"),
+#        col = c("red", "green"), lty = 1, cex = 0.8)
+
+# dev.off()  # Write to file
+```
+<!-- ## Submission 1 
 \begin{mdframed}[linecolor=black, linewidth=3pt]
 \begin{center}
 \includegraphics[width=0.8\textwidth]{nogit_tmp_plot.png}
 \end{center}
-\end{mdframed}
+\end{mdframed} -->
+
+
