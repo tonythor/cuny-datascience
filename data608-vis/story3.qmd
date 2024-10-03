@@ -1,0 +1,174 @@
+---
+title: "Story 3"
+author: "By Tony Fraser"
+date: "2 October 2024"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    number_sections: false
+header-includes:
+  - \usepackage{xcolor}  # Add xcolor package for color support
+---
+
+::: {#latex}
+\textcolor{lightgray}{\noindent\rule{\linewidth}{0.3mm}}
+\vspace{5pt} 
+:::
+
+```{r build_dataset, message=FALSE, warning=FALSE, echo=FALSE}
+library(tidyverse)
+library(usmap)
+library(ggplot2)
+library(sf)
+library(ggrepel)
+
+state_names <- tibble(
+  STATE = state.abb,
+  state = state.name
+)
+
+deaths <- read_csv("./story3_files/deaths.csv",
+                   col_types = cols(
+                     YEAR = col_integer(),
+                     STATE = col_character(),
+                     RATE = col_double(),
+                     DEATHS = col_character(),
+                     URL = col_character()
+                   )) %>%
+  mutate(
+    DEATHS = as.numeric(str_remove_all(DEATHS, ","))  
+  ) %>%
+  filter(STATE != "District of Columbia" & STATE != "DC") %>%  
+  filter(YEAR == 2022) %>% 
+  left_join(state_names, by = "STATE") %>%
+  select(-URL)
+
+# Define the likert scoring function
+likert <- function(grade) {
+  case_when(
+    grade %in% c("A", "A-") ~ 5,               # Very Strict
+    grade %in% c("B+", "B", "B-") ~ 4,         # Strict
+    grade %in% c("C+", "C", "C-") ~ 3,         # Moderate
+    grade %in% c("D+", "D", "D-") ~ 2,         # Lax
+    grade == "F" ~ 1,                          # Very Lax
+    TRUE ~ NA_real_
+  )
+}
+
+gifford_scores <- read_csv("./story3_files/gifford_rates.csv") %>% 
+  mutate(likert_score = likert(grade))
+
+merged_data <- deaths %>%
+  left_join(gifford_scores, by = "state") %>%
+  mutate(
+    label = paste0(round(gun_death_rate_per_100k, 1)),
+    likert_score = factor(likert_score)
+  )
+
+```
+
+```{r chart3, message=FALSE, warning=FALSE, echo=FALSE, fig.width=14, fig.height=10}
+centroids <- usmap::us_map(regions = "states") %>%
+  st_as_sf() %>% 
+  st_centroid() %>%  
+  mutate(
+    centroid_lon = st_coordinates(.)[, 1], 
+    centroid_lat = st_coordinates(.)[, 2]  
+  ) %>%
+  as_tibble() %>% 
+  select(full, centroid_lon, centroid_lat) %>%
+  rename(state = full)  
+
+plot_data <- merged_data %>%
+  left_join(centroids, by = "state")
+
+crowded_states <- c("CT", "RI", "NJ", "DE", "MD", "MA", "NH", "VT")
+
+repel_data <- plot_data %>% filter(STATE %in% crowded_states)
+
+likert_colors <- c("1" = "#ffcccc", "2" = "#ff9999", "3" = "#ff6666", "4" = "#ff3333", "5" = "#cc0000")
+
+base_map <- plot_usmap(data = plot_data, values = "likert_score", regions = "states") +
+  scale_fill_manual(
+    name = "Strictness / Likert Score",
+    values = likert_colors,
+    labels = c("1 - Very Lax", "2 - Lax", "3 - Moderate", "4 - Strict", "5 - Very Strict")
+  ) +
+  labs(
+    title = "Legal Strictness and Firearm Mortality Rates by State",
+    caption = "Data Source: CDC Mortality Data and Giffords Law Center Scorecard, 2022"
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 24, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(size = 20, face = "italic", hjust = 0.5),
+    plot.caption = element_text(size = 10, hjust = 0, margin = margin(t = 10)),
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12)
+  )
+
+map_with_labels <- base_map +
+  geom_text(
+    data = plot_data %>% filter(!STATE %in% crowded_states), 
+    aes(x = centroid_lon, y = centroid_lat, label = label),
+    size = 3, color = "black"
+  )
+
+final_map <- map_with_labels +
+  geom_label_repel(
+    data = repel_data,
+    aes(x = centroid_lon, y = centroid_lat, label = label),
+    size = 3, 
+    color = "black",
+    force = 15,  
+    nudge_x = 0.5, 
+    nudge_y = 0.5, 
+    box.padding = 0.5, 
+    point.padding = 0.4, 
+    segment.color = "gray",  
+    segment.size = 0.5,  
+    direction = "both", 
+    max.overlaps = Inf, 
+    min.segment.length = 0  
+  ) +
+  labs(
+    title = "Do Stricter Gun Control Laws Reduce Firearm Mortality Rates?",
+    subtitle = "Gun Law Strictness and Firearm Mortality Rates by State",
+    caption = "Data Source: CDC Mortality Data and Giffords Law Center Scorecard, 2022",
+    tag = "Note: Values in states represent Firearm Mortality Rate per 100,000"
+  ) +
+  theme_void() +
+  theme(
+    plot.title = element_text(size = 24, face = "bold", hjust = 1.1), 
+    plot.subtitle = element_text(size = 20, face = "italic", hjust = 0.76),  
+    plot.caption = element_text(size = 12, hjust = 0.69, vjust = -0.5, margin = margin(t = 15, b = 10)), 
+    plot.tag = element_text(size = 12, face = "bold", hjust = 0.5), 
+    plot.tag.position = c(0.5, 0.05), 
+    legend.title = element_text(size = 14),
+    legend.text = element_text(size = 12),
+    plot.margin = margin(t = 20, r = 20, b = 30, l = 20)  
+  )
+
+
+print(final_map)
+```
+::: {#latex}
+\vspace{8pt} 
+\textcolor{lightgray}{\noindent\rule{\linewidth}{0.3mm}}
+
+:::
+
+```{r chart1, message=FALSE, warning=FALSE, echo=FALSE, fig.width=12, fig.height=14}
+# ggplot(merged_data, aes(x = ranked_gun_law_strength, y = reorder(state, ranked_gun_law_strength), fill = gun_death_rate_per_100k)) +
+#   geom_tile(color = "white", lwd = 0.5, linetype = 2) +
+#   scale_fill_gradient(low = "green", high = "red", name = "Gun Death Rate per 100k") +
+#   labs(
+#     title = "Correlation Between Gun Law Strength and Gun Violence Deaths",
+#     x = "Gun Law Strength Ranking (Lower = Stricter Laws)",
+#     y = "State",
+#     caption = "Source: Dataset"
+#   ) +
+#   theme_minimal() +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```

@@ -1,0 +1,51 @@
+﻿ranked_gun_law_strength,state,grade,ranked_gun_death_rate,gun_death_rate_per_100k
+1,California,A,44,8.7
+3,Connecticut,A,45,7
+2,New Jersey,A,47,5
+10,Colorado,A-,19,17.3
+6,Hawaii,A-,48,4.5
+4,Illinois,A-,32,14.4
+8,Maryland,A-,35,13.6
+7,Massachusetts,A-,49,3.7
+5,New York,A-,46,5.3
+11,Oregon,A-,30,14.6
+9,Washington,A-,36,12.6
+13,Delaware,B+,39,12.1
+12,Rhode Island,B+,50,3.1
+14,Virginia,B+,28,15.1
+15,Minnesota,B,43,9.7
+16,Pennsylvania,B,29,14.8
+17,Michigan,B-,27,15.1
+19,Nevada,B-,15,19.3
+18,Vermont,B-,38,12.2
+20,New Mexico,C+,3,27.5
+21,Wisconsin,C,33,14.1
+23,Nebraska,C-,37,12.3
+22,North Carolina,C-,20,17.1
+24,Florida,D+,31,14.4
+25,Indiana,D-,17,17.6
+27,Maine,D-,40,12
+28,New Hampshire,D-,42,10.3
+25,Ohio,D-,26,15.7
+28,South Carolina,D-,9,21.3
+35,Alabama,F,4,25.9
+40,Alaska,F,7,22.7
+41,Arizona,F,12,20.5
+48,Arkansas,F,8,22.1
+33,Georgia,F,14,20
+46,Idaho,F,18,17.5
+34,Iowa,F,41,11.3
+42,Kansas,F,21,17
+47,Kentucky,F,16,18.9
+32,Louisiana,F,2,28.2
+44,Mississippi,F,1,29.7
+48,Missouri,F,6,24.4
+45,Montana,F,5,24.5
+35,North Dakota,F,22,16.5
+35,Oklahoma,F,13,20.1
+43,South Dakota,F,24,16.1
+39,Tennessee,F,10,20.9
+31,Texas,F,25,15.7
+30,Utah,F,34,14
+35,West Virginia,F,23,16.4
+50,Wyoming,F,11,20.6
