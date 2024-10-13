@@ -159,16 +159,66 @@ print(final_map)
 
 :::
 
-```{r chart1, message=FALSE, warning=FALSE, echo=FALSE, fig.width=12, fig.height=14}
-# ggplot(merged_data, aes(x = ranked_gun_law_strength, y = reorder(state, ranked_gun_law_strength), fill = gun_death_rate_per_100k)) +
-#   geom_tile(color = "white", lwd = 0.5, linetype = 2) +
-#   scale_fill_gradient(low = "green", high = "red", name = "Gun Death Rate per 100k") +
-#   labs(
-#     title = "Correlation Between Gun Law Strength and Gun Violence Deaths",
-#     x = "Gun Law Strength Ranking (Lower = Stricter Laws)",
-#     y = "State",
-#     caption = "Source: Dataset"
-#   ) +
-#   theme_minimal() +
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```{r}
+library(tidyverse)
+library(ggrepel)
+library(usmap)
+library(patchwork)  # For combining plots
+
+
+print("hello")
+# Assuming `merged_data` is the dataset from previous processing
+# Create a new dataframe for the violin plot with categories
+violin_data <- merged_data %>%
+  select(state, likert_score, gun_death_rate_per_100k) %>%
+  mutate(
+    likert_cat = as.factor(likert_score),  # Factorize likert score
+    state_abbr = state                     # Use `state` instead of `STATE`
+  )
+
+
+# Define custom colors for each Likert category
+violin_colors <- c("1" = "#1b9e77", "2" = "#d95f02", "3" = "#7570b3", 
+                   "4" = "#e7298a", "5" = "#66a61e")
+
+# Plot the violin plot
+violin_plot <- ggplot(violin_data, aes(x = likert_cat, y = gun_death_rate_per_100k, fill = likert_cat)) +
+  geom_violin(trim = FALSE, alpha = 0.6) +
+  geom_boxplot(width = 0.1, outlier.shape = NA) +
+  stat_summary(fun = median, geom = "line", aes(group = 1), color = "red", size = 1) +
+  geom_text_repel(aes(label = state_abbr), size = 3, max.overlaps = 20) +
+  scale_fill_manual(values = violin_colors) +
+  labs(
+    title = "Gun Death Rate per 100,000 Citizens as a function of Gun Control Law Strictness, 2022",
+    subtitle = "Likert Scale Based on Gifford Grade",
+    x = "Gun Law Strictness",
+    y = "Death Rate per 100,000 Individuals",
+    caption = "Data Source: CDC Mortality Data and Giffords Law Center Scorecard, 2022"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 14, face = "italic"),
+    plot.caption = element_text(size = 12, hjust = 0.5),
+    legend.position = "none"
+  )
+
+# Create small maps for each Likert category
+likert_map_plots <- violin_data %>%
+  split(.$likert_cat) %>%
+  map(~ plot_usmap(data = ., values = "likert_cat", include = .x$state) +
+    scale_fill_manual(values = violin_colors) +
+    labs(title = paste("Likert:", unique(.x$likert_cat))) +
+    theme_void() +
+    theme(
+      plot.title = element_text(size = 10, hjust = 0.5)
+    ))
+
+# Combine violin plot with mini-maps using patchwork
+final_plot <- (violin_plot) / wrap_plots(likert_map_plots, ncol = 5) +
+  plot_layout(heights = c(3, 1))  # Adjust heights if needed
+
+# Display the final combined plot
+print(final_plot)
 ```
