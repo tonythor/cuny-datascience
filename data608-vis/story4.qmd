@@ -135,20 +135,12 @@ plt.show()
 ```
 
 
-```{python plot1, message=false, warning=false, echo=false, fig.width=8, fig.height=9}
+```{python plot1, message=false, warning=false, echo=false, fig.width=14, fig.height=9}
 import matplotlib.pyplot as plt
 import seaborn as sns
 df = ziprecruiter
-
-# Boxplot: Salary Distribution by Job Title
-plt.figure(figsize=(10, 6))
+plt.figure(figsize=(14, 6))  # Adjust the figure size for better width
 sns.boxplot(y='Job Title', x='Annual Salary', data=df, orient='h')
-plt.title('Salary by title within this data set');  
-
+plt.title('Salary by title within this data set')
+plt.show()
 ```
-
-
-```{python}
-plt.show() 
-```
-
