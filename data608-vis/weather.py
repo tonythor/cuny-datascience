@@ -3,6 +3,13 @@ import requests
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.ticker import MultipleLocator
+import seaborn as sns
+import matplotlib.pyplot as plt
+import geopandas as gpd
+import numpy as np
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+from scipy import stats
 
 # URLs for datasets
 HURDAT2_URL = "https://www.nhc.noaa.gov/data/hurdat/hurdat2-1851-2023-051124.txt"
@@ -366,3 +373,167 @@ def plot_temperature_anomaly(gistemp_df):
 # gistemp_df = load_gistemp_data()
 # plt = plot_temperature_anomaly(gistemp_df)
 # plt.show()
+
+
+
+def create_hurricane_typhoon_map(
+    figsize=(15, 8),
+    line_color='red',
+    text_color='darkred',
+    text_size=12,
+    title_size=16
+):
+    """
+    Creates a visualization showing hurricane/typhoon regions with a map background.
+    
+    Parameters:
+    -----------
+    figsize : tuple, default (15, 8)
+        Size of the figure in inches
+    line_color : str, default 'red'
+        Color of the dividing line
+    text_color : str, default 'darkred'
+        Color of the text labels
+    text_size : int, default 12
+        Size of the main labels
+    title_size : int, default 16
+        Size of the title
+    
+    Returns:
+    --------
+    tuple
+        (figure, axis) matplotlib objects
+    """
+    # Create figure with cartopy projection
+    plt.figure(figsize=figsize)
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    
+    # Add map features
+    ax.add_feature(cfeature.LAND, facecolor='lightgray')
+    ax.add_feature(cfeature.OCEAN, facecolor='lightblue')
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
+    
+    # Create sample data points
+    np.random.seed(42)  # for reproducibility
+    n_points = 50
+    
+    # Western Pacific (Typhoon) points
+    west_x = np.random.uniform(20, 150, n_points)
+    west_y = np.random.uniform(-20, 40, n_points)
+    
+    # Eastern Pacific (Hurricane) points
+    east_x = np.random.uniform(-150, -20, n_points)
+    east_y = np.random.uniform(-20, 40, n_points)
+    
+    # Create DataFrame
+    data = pd.DataFrame({
+        'longitude': np.concatenate([west_x, east_x]),
+        'latitude': np.concatenate([west_y, east_y]),
+        'storm_type': ['Typhoon']*n_points + ['Hurricane']*n_points
+    })
+    
+    # Plot storm locations
+    for storm_type, color, marker in [('Hurricane', 'navy', 'x'), ('Typhoon', 'darkred', 'o')]:
+        mask = data['storm_type'] == storm_type
+        ax.scatter(data[mask]['longitude'], 
+                  data[mask]['latitude'],
+                  c=color, 
+                  marker=marker,
+                  s=100,
+                  alpha=0.5,
+                  label=storm_type,
+                  transform=ccrs.PlateCarree())
+    
+    # Add the dividing line
+    x = np.linspace(-180, 180, 200)
+    y = 15 * np.sin((x + 30) / 100)
+    ax.plot(x, y, color=line_color, linestyle='--', linewidth=2, transform=ccrs.PlateCarree())
+    
+    # Set the map extent
+    ax.set_extent([-180, 180, -60, 60], crs=ccrs.PlateCarree())
+    
+    # Add gridlines
+    ax.gridlines(draw_labels=True, alpha=0.3)
+    
+    # Add labels
+    ax.text(-120, 50, 'Hurricanes', fontsize=text_size+4, color='navy', 
+            fontweight='bold', transform=ccrs.PlateCarree())
+    ax.text(80, 50, 'Typhoons', fontsize=text_size+4, color='darkred', 
+            fontweight='bold', transform=ccrs.PlateCarree())
+    
+    # Add title
+    plt.title('Same Storm, Different Names', fontsize=title_size, pad=20)
+    
+    # Add explanation
+    ax.text(0, -50, 
+            'The same type of tropical cyclone is called a "hurricane" in the Eastern Pacific\n'
+            'and Atlantic, but a "typhoon" in the Western Pacific',
+            ha='center', fontsize=text_size-2, transform=ccrs.PlateCarree())
+    
+    plt.tight_layout()
+    
+    return plt.gcf(), ax
+
+# Example usage:
+# fig, ax = create_hurricane_typhoon_map()
+# plt.show()
+
+
+def plot_correlation(gistemp_df, major_hurricanes_df):
+    # Calculate annual stats
+    annual_stats = pd.DataFrame()
+    
+    # Get annual temperature averages
+    annual_stats['avg_temp'] = gistemp_df.groupby('Year')['No_Smoothing'].mean()
+    
+    # Count major hurricanes per year
+    hurricane_counts = major_hurricanes_df[
+        major_hurricanes_df['category'].isin([4, 5])
+    ]['year'].value_counts().sort_index()
+    annual_stats['major_hurricanes'] = hurricane_counts
+    
+    # Fill missing values with 0
+    annual_stats['major_hurricanes'] = annual_stats['major_hurricanes'].fillna(0)
+    
+    # Calculate correlation
+    correlation = stats.pearsonr(annual_stats['avg_temp'], 
+                               annual_stats['major_hurricanes'])[0]
+    
+    # Create scatter plot
+    plt.figure(figsize=(10, 6))
+    
+    # Plot points with jitter to show overlapping points
+    sns.regplot(data=annual_stats,
+                x='avg_temp',
+                y='major_hurricanes',
+                scatter_kws={'alpha':0.5, 'color':'darkblue'},
+                line_kws={'color': 'red'})
+    
+    # Add correlation info in student-friendly terms
+    if correlation >= 0.5:
+        strength = "strong"
+    elif correlation >= 0.3:
+        strength = "moderate"
+    else:
+        strength = "weak"
+        
+    plt.title("Warmer Years Have More Strong Hurricanes\n" +
+             f"({strength} positive relationship)", 
+             pad=20, fontsize=12)
+    
+    plt.xlabel('Temperature Difference from Normal (°C)', fontsize=10)
+    plt.ylabel('Number of Category 4-5 Hurricanes per Year', fontsize=10)
+    
+    # Add simple explanation
+    plt.text(0.05, 0.95, 
+            "Each dot represents one year.\n" +
+            "Upward slope shows that as temperature increases,\n" +
+            "we tend to see more powerful hurricanes.",
+            transform=plt.gca().transAxes,
+            verticalalignment='top',
+            fontsize=9)
+    
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    return plt

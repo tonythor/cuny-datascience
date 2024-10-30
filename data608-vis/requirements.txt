@@ -3,7 +3,7 @@ ipython
 wheel
 numpy
 pandas
-plotly==5.13.1
+plotly
 jupyter
 seaborn
 scipy
@@ -13,3 +13,6 @@ matplotlib
 openpyxl
 matplotlib
 tk
+cartopy
+geopandas
+shapely
