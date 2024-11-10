@@ -8,11 +8,11 @@ jupyter
 seaborn
 scipy
 ipykernel
-sympy
+#sympy
 matplotlib 
-openpyxl
+#openpyxl
 matplotlib
 tk
-cartopy
-geopandas
-shapely
+#cartopy
+#geopandas
+#shapely
