@@ -1,0 +1,116 @@
+---
+format:
+  html:
+    toc: false
+    self-contained: true
+    html-math-method: katex
+    embed-resources: true
+    theme: cosmo
+---
+
+```{r setup, message=FALSE, echo=FALSE, warning=FALSE}
+library(dplyr)
+library(data.table)
+library(mapview)
+library(stringr)
+library(sf)
+library(leaflet)
+library(RColorBrewer)
+
+# Enable self-contained HTML for mapview
+mapviewOptions(
+  platform = 'leaflet',
+  basemaps = "CartoDB.Positron",
+  legend.pos = "bottomright",
+  verbose = FALSE
+)
+
+# Define constants
+sample_size <- 1000
+radius_constant_latitude <- 0.5 / 69  # about half a mile
+radius_constant_longitude <- 0.5 / 53
+latitude_center <- 40.63301218679552  # home location
+longitude_center <- -74.03144593229777
+
+# Define data files
+data_files = c("xaa.csv", "xac.csv", "xae.csv", "xag.csv", "xai.csv", "xak.csv", 
+  "xam.csv", "xao.csv", "xaq.csv", "xas.csv", "xau.csv", "xab.csv", "xad.csv", 
+  "xaf.csv", "xah.csv", "xaj.csv", "xal.csv", "xan.csv", "xap.csv", "xar.csv", "xat.csv")[1:7]
+
+# Get all the data files into fully qualified urls
+git_repo <- "https://raw.githubusercontent.com/tonythor/cuny-datascience/"
+base_url <- paste(git_repo, "develop/data/nyctraffic/csv_files/", sep="")
+data_file_urls <- sapply(data_files, USE.NAMES = FALSE, function(i) str_c(base_url,i))
+
+# Load headers
+header_url <- str_c(base_url, "../headers.csv")
+headers <- colnames(fread(header_url, header=TRUE))
+
+# Load all urls into a dataframe
+df_list <- lapply(data_file_urls, function(i) {
+  message("Loading file: ", i)
+  fread(i, col.names = headers)
+})
+
+# Union the dataframes
+accidents <- do.call(rbind, df_list)
+
+# Clean data and simplify vehicle categories
+accidents <- accidents %>%
+  filter(!is.na(LATITUDE) & !is.na(LONGITUDE)) %>%
+  filter(LATITUDE != 0 & LONGITUDE != 0) %>%
+  filter(
+    between(LATITUDE, 
+            latitude_center - radius_constant_latitude, 
+            latitude_center + radius_constant_latitude) &
+    between(LONGITUDE, 
+            longitude_center - radius_constant_longitude, 
+            longitude_center + radius_constant_longitude)
+  ) %>%
+  mutate(vehicle_category = factor(case_when(
+    grepl("sedan|PASSENGER|door", tolower(`VEHICLE TYPE CODE 1`)) ~ "Car",
+    grepl("suv|utility|wagon", tolower(`VEHICLE TYPE CODE 1`)) ~ "SUV",
+    grepl("truck|pick|box|dump", tolower(`VEHICLE TYPE CODE 1`)) ~ "Truck",
+    grepl("bike|scooter|motor", tolower(`VEHICLE TYPE CODE 1`)) ~ "Two-Wheeler",
+    grepl("bus|livery|taxi", tolower(`VEHICLE TYPE CODE 1`)) ~ "Public Transit",
+    grepl("ambulance|fire", tolower(`VEHICLE TYPE CODE 1`)) ~ "Emergency Vehicle",
+    TRUE ~ "Other"
+  ))) %>%
+  sample_n(min(sample_size, nrow(.))) %>%
+  mutate(popup_text = paste(
+    "<strong>Vehicle Type:</strong>", vehicle_category,
+    "<br><strong>Date:</strong>", `CRASH DATE`,
+    "<br><strong>Time:</strong>", `CRASH TIME`
+  ))
+
+# Create map with colorblind-friendly styling
+m_accidents <- mapview(accidents, 
+                      crs = 4269,
+                      xcol = "LONGITUDE", 
+                      ycol = "LATITUDE", 
+                      zcol = "vehicle_category", 
+                      col.regions = brewer.pal(7, "Set2"),
+                      popup = "popup_text",
+                      layer.name = "Vehicle Type",
+                      alpha.regions = 0.8,
+                      grid = FALSE)
+
+# Add home marker
+m_home <- mapview(data.frame(LONGITUDE = longitude_center, 
+                           LATITUDE = latitude_center), 
+                 crs = 4269,
+                 xcol = "LONGITUDE", 
+                 ycol = "LATITUDE", 
+                 col.regions = "#e41a1c",
+                 color = "#e41a1c",
+                 popup = "Home Location",
+                 layer.name = "Home",
+                 grid = FALSE)
+
+# Combine maps
+m_combined <- m_accidents + m_home
+```
+
+```{r display_map, message=FALSE, warning=FALSE, echo=FALSE}
+m_combined
+```

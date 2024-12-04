@@ -5,14 +5,13 @@ numpy
 pandas
 plotly
 jupyter
-seaborn
-scipy
+#seaborn
+#scipy
 ipykernel
 #sympy
 matplotlib 
 #openpyxl
-matplotlib
-tk
+#tk
 #cartopy
 #geopandas
 #shapely
