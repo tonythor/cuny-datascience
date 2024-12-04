@@ -1,0 +1,101 @@
+---
+title: "A Dynamic Word Cloud\nof Taylor Swift Lyrics"
+output: 
+  html_document:
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(readr)
+library(tidytext)
+library(dplyr)
+library(htmlwidgets)
+library(wordcloud2)
+
+# Load and process data
+github_proj <- "https://raw.githubusercontent.com/tonythor/cuny-datascience/develop/"
+song_lyrics <- read_csv(paste0(github_proj, "data/taylor_swift_lyrics.csv")) %>%
+  unnest_tokens(word, lyric)
+
+# Create word frequency dataframe
+wc_count <- 20
+wc_df <- song_lyrics %>%
+  select(word) %>%
+  anti_join(stop_words, by = "word") %>%
+  count(word) %>%
+  filter(n >= wc_count) %>%
+  arrange(desc(n))
+```
+<i>Taylor obviously has the winning formula. If we use the same word frequency, will our songs also hit?</i> 
+```{css}
+#my_wordcloud {
+  width: 100%;
+  height: 600px;
+}
+```
+
+```{r wordcloud}
+# Create the word cloud
+wc <- wordcloud2(data = wc_df, 
+                size = 1, 
+                color = 'random-dark',
+                backgroundColor = "white")
+
+# Add custom JavaScript for interactivity
+wc <- onRender(wc, "
+  function(el, x) {
+    // Add tooltip div if it doesn't exist
+    var tooltip = document.getElementById('wctooltip');
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.setAttribute('id', 'wctooltip');
+      tooltip.style.position = 'absolute';
+      tooltip.style.padding = '8px';
+      tooltip.style.background = 'rgba(0,0,0,0.8)';
+      tooltip.style.color = 'white';
+      tooltip.style.borderRadius = '4px';
+      tooltip.style.fontSize = '14px';
+      tooltip.style.pointerEvents = 'none';
+      tooltip.style.zIndex = '1000';
+      tooltip.style.display = 'none';
+      document.body.appendChild(tooltip);
+    }
+
+    // Add event listeners to the canvas
+    el.querySelector('canvas').addEventListener('mousemove', function(e) {
+      var rect = this.getBoundingClientRect();
+      var x = e.clientX - rect.left;
+      var y = e.clientY - rect.top;
+      
+      // Get word under cursor (if any)
+      var wordAndFreq = this.getWordAtPosition(x, y);
+      if (wordAndFreq) {
+        var word = wordAndFreq.word;
+        var freq = wordAndFreq.freq;
+        
+        // Show tooltip
+        tooltip.style.display = 'block';
+        tooltip.innerHTML = word + ': ' + freq;
+        tooltip.style.left = (e.pageX + 10) + 'px';
+        tooltip.style.top = (e.pageY - 10) + 'px';
+        
+        // Scale effect
+        e.target.style.cursor = 'pointer';
+      } else {
+        tooltip.style.display = 'none';
+        e.target.style.cursor = 'default';
+      }
+    });
+
+    el.querySelector('canvas').addEventListener('mouseout', function() {
+      tooltip.style.display = 'none';
+    });
+  }
+")
+
+wc
+```
+Usage: Mouse over a word to see how many times it has been used in her lyrics.
+
+Based on: <a href=https://www.kaggle.com/datasets/PromptCloudHQ/taylor-swift-song-lyrics-from-all-the-albums/>this</a> project plus some personal updates.
